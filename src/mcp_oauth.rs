@@ -37,11 +37,11 @@ const CLIENT_NAME_MAX: usize = 128;
 /// Stable public client for Cursor CLI / IDE (`auth.CLIENT_ID` in mcp.json).
 /// Lives in process memory like other DCR clients, but is re-seeded on use so
 /// restarts do not invalidate a checked-in CLIENT_ID.
-pub const CURSOR_CLIENT_ID: &str = "honr-cursor";
+pub const CURSOR_CLIENT_ID: &str = "sandboard-cursor";
 
 /// Public client for the sandboxed cockpit / Cockpit inject path.
 /// Tokens are minted server-side (no browser OAuth inside the box).
-pub const COCKPIT_CLIENT_ID: &str = "honr-cockpit";
+pub const COCKPIT_CLIENT_ID: &str = "sandboard-cockpit";
 
 /// Default MCP URL as seen from inside the cockpit sandbox (Docker/OpenShell).
 /// Access token lifetime (seconds) — exported for inject metadata.
@@ -61,14 +61,14 @@ fn ensure_static_clients(st: &mut OAuthStore) {
         .entry(CURSOR_CLIENT_ID.to_string())
         .or_insert_with(|| ClientRecord {
             redirect_uris: cursor_redirect_uris(),
-            client_name: Some("Cursor (honr)".into()),
+            client_name: Some("Cursor (sandboard)".into()),
         });
     st.clients
         .entry(COCKPIT_CLIENT_ID.to_string())
         .or_insert_with(|| ClientRecord {
             // No browser redirect — mint path only. Placeholder keeps DCR shape.
-            redirect_uris: vec!["http://127.0.0.1/honr-cockpit-no-redirect".into()],
-            client_name: Some("honr cockpit (injected)".into()),
+            redirect_uris: vec!["http://127.0.0.1/sandboard-cockpit-no-redirect".into()],
+            client_name: Some("sandboard cockpit (injected)".into()),
         });
 }
 
@@ -85,13 +85,13 @@ pub struct OpsMcpTokens {
 }
 
 /// Informational `aud` for the (vestigial) cockpit JWT. Cockpit's shipped
-/// `honr` MCP entry is stdio over a local Unix socket now — nothing sends
+/// `sandboard` MCP entry is stdio over a local Unix socket now — nothing sends
 /// this Bearer over a wire. See `cockpit_mcp_tunnel`.
 pub fn cockpit_mcp_resource() -> String {
     crate::cockpit_mcp_tunnel::MCP_TRANSPORT_LABEL.to_string()
 }
 
-/// Mint access + refresh JWTs for the cockpit (`honr-cockpit` client).
+/// Mint access + refresh JWTs for the cockpit (`sandboard-cockpit` client).
 ///
 /// `sub` is the board principal (logged-in login, or `"cockpit"` for supervisor
 /// fallback). `resource` should be the URL the sandbox uses (see
@@ -180,7 +180,7 @@ fn random_token() -> String {
 /// Public origin for OAuth redirect_uri / metadata issuer.
 ///
 /// Prefer the origin the browser actually used (Vite/Tailscale/proxy), not the
-/// backend bind address and not a process-wide `HONR_PUBLIC_URL` override.
+/// backend bind address and not a process-wide `SANDBOARD_PUBLIC_URL` override.
 /// MCP client OAuth (Atlassian, etc.) must bounce back to the tab that started
 /// login — env public URL is only a fallback when the request has no Host /
 /// Origin / X-Forwarded-* (or when those are empty).
@@ -226,7 +226,7 @@ pub fn public_origin(headers: &HeaderMap) -> String {
     {
         return format!("{proto}://{host}");
     }
-    std::env::var("HONR_PUBLIC_URL")
+    std::env::var("SANDBOARD_PUBLIC_URL")
         .ok()
         .map(|s| s.trim().trim_end_matches('/').to_string())
         .filter(|s| !s.is_empty())
@@ -299,7 +299,7 @@ struct AccessClaims {
     typ: String,
 }
 
-/// Refresh JWT — same signing key as access / web sessions so a honr restart
+/// Refresh JWT — same signing key as access / web sessions so a sandboard restart
 /// does not wipe Cursor's stored refresh token.
 #[derive(Debug, Serialize, Deserialize)]
 struct RefreshClaims {
@@ -571,7 +571,7 @@ async fn register_client(
             ));
         }
     }
-    let client_id = format!("honr-{}", &random_token()[..16]);
+    let client_id = format!("sandboard-{}", &random_token()[..16]);
     let name = body
         .client_name
         .as_deref()
@@ -809,7 +809,7 @@ async fn authorize_get(
         .encode(authorize_query_string(&q).as_bytes());
     let body = format!(
         r#"<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><title>Authorize MCP — honr</title>
+<html lang="en"><head><meta charset="utf-8"><title>Authorize MCP — sandboard</title>
 <style>
   body {{ font-family: system-ui, sans-serif; max-width: 28rem; margin: 3rem auto; padding: 0 1rem;
          color: #1a2428; background: #f5faf6; }}
@@ -824,7 +824,7 @@ async fn authorize_get(
   <div class="card">
     <h1>Authorize MCP access</h1>
     <p class="dim">Signed in as <strong>{login}</strong>.</p>
-    <p><strong>{name}</strong> wants to use the honr board via MCP.</p>
+    <p><strong>{name}</strong> wants to use the sandboard board via MCP.</p>
     <form method="post" action="/oauth/authorize">
       <input type="hidden" name="decision" value="approve" />
       <input type="hidden" name="payload" value="{payload}" />
@@ -1212,7 +1212,7 @@ mod tests {
         let hex = "ab".repeat(32);
         let env = crate::secrets::master_key_env::Guard::with_hex_key(&hex);
         let path = std::env::temp_dir().join(format!(
-            "honr-mcp-oauth-{}-{}.json",
+            "sandboard-mcp-oauth-{}-{}.json",
             std::process::id(),
             now_secs()
         ));
@@ -1260,11 +1260,11 @@ mod tests {
     /// Guards MCP client OAuth (Atlassian, etc.): a process-wide public URL
     /// must not steal redirect_uri away from the tab that started login.
     #[test]
-    fn public_origin_prefers_browser_over_honr_public_url_env() {
-        let prev = std::env::var("HONR_PUBLIC_URL").ok();
+    fn public_origin_prefers_browser_over_sandboard_public_url_env() {
+        let prev = std::env::var("SANDBOARD_PUBLIC_URL").ok();
         // SAFETY: test-only; serial enough for this crate's unit tests.
         unsafe {
-            std::env::set_var("HONR_PUBLIC_URL", "https://honr.example.ts.net");
+            std::env::set_var("SANDBOARD_PUBLIC_URL", "https://sandboard.example.ts.net");
         }
 
         let mut headers = HeaderMap::new();
@@ -1279,13 +1279,13 @@ mod tests {
 
         assert_eq!(
             public_origin(&HeaderMap::new()),
-            "https://honr.example.ts.net"
+            "https://sandboard.example.ts.net"
         );
 
         unsafe {
             match prev {
-                Some(v) => std::env::set_var("HONR_PUBLIC_URL", v),
-                None => std::env::remove_var("HONR_PUBLIC_URL"),
+                Some(v) => std::env::set_var("SANDBOARD_PUBLIC_URL", v),
+                None => std::env::remove_var("SANDBOARD_PUBLIC_URL"),
             }
         }
     }
@@ -1380,7 +1380,7 @@ mod tests {
     async fn bootstrap_board_skips_bearer_gate() {
         reset_store_for_tests();
         let path = std::env::temp_dir().join(format!(
-            "honr-mcp-oauth-boot-{}-{}.json",
+            "sandboard-mcp-oauth-boot-{}-{}.json",
             std::process::id(),
             now_secs()
         ));
@@ -1492,7 +1492,7 @@ mod tests {
                     .uri("/oauth/authorize")
                     .header(header::HOST, "127.0.0.1:8080")
                     .header(header::CONTENT_TYPE, "application/x-www-form-urlencoded")
-                    .header(header::COOKIE, format!("honr_session={session}"))
+                    .header(header::COOKIE, format!("sandboard_session={session}"))
                     .body(Body::from({
                         let q = AuthorizeQuery {
                             response_type: Some("code".into()),
@@ -1643,7 +1643,7 @@ mod tests {
                     .uri("/oauth/authorize")
                     .header(header::HOST, "127.0.0.1:8080")
                     .header(header::CONTENT_TYPE, "application/x-www-form-urlencoded")
-                    .header(header::COOKIE, format!("honr_session={session}"))
+                    .header(header::COOKIE, format!("sandboard_session={session}"))
                     .body(Body::from(format!("decision=approve&payload={payload}")))
                     .unwrap(),
             )
@@ -1698,7 +1698,7 @@ mod tests {
         let resource = "http://127.0.0.1:8080/mcp";
         let refresh = mint_test_refresh_token(&board, "admin", client_id, resource);
 
-        // Simulate honr restart: ephemeral store wiped; auth bundle (session key) kept.
+        // Simulate sandboard restart: ephemeral store wiped; auth bundle (session key) kept.
         reset_store_for_tests();
 
         let app = Router::new()

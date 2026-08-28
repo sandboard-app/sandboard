@@ -1,12 +1,12 @@
 //! Host-mediated OpenShell gateway OIDC login (Authorization Code + PKCE).
 //!
 //! The IdP client (OpenShell CLI / Keycloak) already allows loopback
-//! `redirect_uri`s. Honr asks for `http://127.0.0.1:<port>/callback` — the
+//! `redirect_uri`s. Sandboard asks for `http://127.0.0.1:<port>/callback` — the
 //! same shape as `openshell gateway login` / Hermes — and the operator pastes
 //! the callback URL (the loopback page will not load on a Tailscale board).
 //! Token exchange still uses that exact redirect_uri. Distinct from
 //! [`crate::antigravity_oauth`] (Google hosted paste-code) and from MCP
-//! client OAuth (honr as the authorization server).
+//! client OAuth (sandboard as the authorization server).
 
 use crate::secrets::OpenShellOidcBundle;
 use crate::store::SharedBoard;

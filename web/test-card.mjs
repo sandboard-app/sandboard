@@ -30,7 +30,7 @@ import {
 import { OperatorGuide } from "./dist-test/components/OperatorGuide.js";
 import { ProjectSandboxPicker, SandboxesPanelView, Settings, WorkspacePanelView, OpenShellPanelView, OpenShellProvidersPanelView, OpenShellPoliciesPanelView, OpenShellProviderTypesPanelView, AgentRuntimePanelView, RepoAccessPanelView, OpenShellReadinessStripView, gatewayReady, gatewayMtlsReady, sandboxSpecReady, sandboxHasNoProviders } from "./dist-test/components/Settings.js";
 import { initial, reduce, isSequenceGap, subscribeBoardEvents, emitBoardEvent } from "./dist-test/useBoard.js";
-import { honrWsHost, honrWsUrl } from "./dist-test/wsUrl.js";
+import { sandboardWsHost, sandboardWsUrl } from "./dist-test/wsUrl.js";
 import {
   chromeLocationsEqual,
   formatChromePath,
@@ -464,7 +464,7 @@ assert.ok(
   "Successful REST during a tiny race must still refresh lastLoadedAt (retry / NOT LIVE)"
 );
 
-// Test 11b: After disconnect (or honr restart seq rewind), REST snapshot wins
+// Test 11b: After disconnect (or sandboard restart seq rewind), REST snapshot wins
 const sDisconnected = reduce(sAfterStaleSnap, { type: "connected", ok: false });
 const rewoundSnap = {
   items: [{ ...unblockedItem, title: "Post-restart Snapshot" }],
@@ -479,7 +479,7 @@ assert.strictEqual(sAfterRewind.lastSeenSeq, 2, "Disconnected retry must accept 
 assert.strictEqual(
   sAfterRewind.items.get(8).title,
   "Post-restart Snapshot",
-  "Disconnected retry must apply REST after honr restart"
+  "Disconnected retry must apply REST after sandboard restart"
 );
 
 // Test 11c: reset event rewinds high-water mark so later events apply
@@ -524,7 +524,7 @@ const upsertEv = {
     id: 7,
     title: "Updated Card Title Live",
     state: "review",
-    pull_request: { url: "https://github.com/honr-app/honr/pull/186" },
+    pull_request: { url: "https://github.com/sandboard-app/sandboard/pull/186" },
     notes: [
       { author: "human", text: "initial note" },
       { author: "agent", text: "PR opened" },
@@ -535,7 +535,7 @@ const upsertEv = {
 const updatedDetail = reduceDetail(detailInitial, upsertEv, 7);
 assert.strictEqual(updatedDetail.title, "Updated Card Title Live", "Upsert event for id 7 must update detail title live");
 assert.strictEqual(updatedDetail.state, "review", "Upsert event for id 7 must update detail state live");
-assert.strictEqual(updatedDetail.pull_request?.url, "https://github.com/honr-app/honr/pull/186", "Upsert event for id 7 must update pull_request.url live");
+assert.strictEqual(updatedDetail.pull_request?.url, "https://github.com/sandboard-app/sandboard/pull/186", "Upsert event for id 7 must update pull_request.url live");
 assert.strictEqual(updatedDetail.notes.length, 2, "Upsert event for id 7 must update notes live");
 assert.strictEqual(updatedDetail.ancestry.length, 1, "reduceDetail must preserve existing detail ancestry");
 
@@ -785,7 +785,7 @@ assert(!isDisabled(absentHtml, "cockpit-session-start"), "Start enabled when no 
 assert(isDisabled(absentHtml, "cockpit-session-stop"), "Stop disabled when no session");
 
 const runningSession = {
-  environment: "honr-cockpit",
+  environment: "sandboard-cockpit",
   conversation_id: "conv-cockpit-1",
   status: "running",
   sandbox_phase: "ready",
@@ -800,7 +800,7 @@ const runningHtml = renderToString(
     onStop: noop,
   }),
 );
-assert(!runningHtml.includes("honr-cockpit"), "Session strip does not dump environment");
+assert(!runningHtml.includes("sandboard-cockpit"), "Session strip does not dump environment");
 assert(!runningHtml.includes("conv-cockpit-1"), "Session strip does not dump conversation_id");
 assert(runningHtml.includes("data-testid=\"cockpit-session-phase\""), "Phase strip when ready");
 assert(runningHtml.includes("Ready"), "Ready phase label");
@@ -868,15 +868,15 @@ const attachRunning = renderToString(
   React.createElement(CockpitAttachView, {
     canAttach: true,
     disabledReason: null,
-    environment: "honr-cockpit",
+    environment: "sandboard-cockpit",
     sessionStatus: "running",
   }),
 );
 assert(attachRunning.includes("data-testid=\"cockpit-xterm\""), "xterm host present");
-assert(attachRunning.includes("honr-cockpit"), "Title bar shows environment");
+assert(attachRunning.includes("sandboard-cockpit"), "Title bar shows environment");
 assert(!attachRunning.includes("data-testid=\"cockpit-attach-gate\""), "No gate when attachable");
 
-// Attach reconnect backoff (honr restart must not stick on a dead socket)
+// Attach reconnect backoff (sandboard restart must not stick on a dead socket)
 assert.equal(cockpitAttachRetryDelayMs(0), 1000);
 assert.equal(cockpitAttachRetryDelayMs(1), 2000);
 assert.equal(cockpitAttachRetryDelayMs(5), 15_000);
@@ -928,11 +928,11 @@ assert(chipHtml.includes("reclaiming"), "Bar chip text");
 
 // Vite :5173 → dial API :8080 (cookie is host-scoped; WSS through Vite+Tailscale stalls).
 assert.equal(
-  honrWsHost({ hostname: "tot.tail43beb.ts.net", port: "5173", host: "tot.tail43beb.ts.net:5173" }),
+  sandboardWsHost({ hostname: "tot.tail43beb.ts.net", port: "5173", host: "tot.tail43beb.ts.net:5173" }),
   "tot.tail43beb.ts.net:8080",
 );
 assert.equal(
-  honrWsUrl("/api/cockpit-attach", {
+  sandboardWsUrl("/api/cockpit-attach", {
     protocol: "https:",
     hostname: "tot.tail43beb.ts.net",
     port: "5173",
@@ -941,13 +941,13 @@ assert.equal(
   "wss://tot.tail43beb.ts.net:8080/api/cockpit-attach",
 );
 assert.equal(
-  honrWsUrl("/api/ws", {
+  sandboardWsUrl("/api/ws", {
     protocol: "https:",
-    hostname: "honr.tail43beb.ts.net",
+    hostname: "sandboard.tail43beb.ts.net",
     port: "",
-    host: "honr.tail43beb.ts.net",
+    host: "sandboard.tail43beb.ts.net",
   }),
-  "wss://honr.tail43beb.ts.net/api/ws",
+  "wss://sandboard.tail43beb.ts.net/api/ws",
 );
 
 // Legacy alias
@@ -955,7 +955,7 @@ assert.equal(cockpitChatGate(runningSession).canSend, true);
 
 const helpHtml = renderToString(React.createElement(Help));
 assert(helpHtml.includes("data-testid=\"help-page\""), "Help view should render");
-assert(helpHtml.includes("Welcome to honr"), "Help uses Welcome hero");
+assert(helpHtml.includes("Welcome to sandboard"), "Help uses Welcome hero");
 assert(helpHtml.includes('data-testid="help-welcome"'), "Help wraps welcome stack");
 assert(!helpHtml.includes('data-testid="create-project"'), "Help must not expose Create Project");
 assert(!helpHtml.includes('data-testid="create-project-form"'), "Help must not show Create Project form");
@@ -1747,7 +1747,7 @@ assert(!workspaceHtml.includes("data-testid=\"workspace-field-base\""), "no base
 assert(workspaceHtml.includes("GitLab (future)"), "GitLab listed as future/disabled");
 assert(!workspaceHtml.includes("data-testid=\"workspace-webhook-hint\""), "no gh webhook forward hint");
 assert(!workspaceHtml.includes("gh webhook forward"), "no gh webhook forward copy");
-assert(!workspaceHtml.includes("honr-app/honr"), "Forge panel must not hardcode Shane repo");
+assert(!workspaceHtml.includes("sandboard-app/sandboard"), "Forge panel must not hardcode Shane repo");
 assert(
   workspaceHtml.includes("poll") || workspaceHtml.includes("Polling"),
   "Forge copy mentions polling",
@@ -1880,8 +1880,8 @@ const sandboxPanelBase = {
   ],
   availableMcpServers: [
     {
-      id: "honr",
-      name: "honr",
+      id: "sandboard",
+      name: "sandboard",
       transport: { kind: "http", url: "", auth: { kind: "cockpit_bearer" } },
       audience: "cockpit",
       shipped: true,
@@ -2054,7 +2054,7 @@ const editFormHtml = renderToString(
       engine: "cursor",
       model: "gpt-5",
       provider_names: ["vertex"],
-      mcp_server_ids: ["honr"],
+      mcp_server_ids: ["sandboard"],
       env: {},
       prompt: "",
     },
@@ -2064,13 +2064,13 @@ assert(editFormHtml.includes("data-testid=\"sandbox-field-id\""),
   "Edit form may show id read-only");
 assert(editFormHtml.includes("disabled") || editFormHtml.includes("readonly"),
   "Edit id field should be non-editable");
-// Cockpit-effective spec: shipped honr is locked on (cannot uncheck).
+// Cockpit-effective spec: shipped sandboard is locked on (cannot uncheck).
 assert(
-  /data-testid="sandbox-mcp-honr"[^>]*disabled/.test(editFormHtml) ||
-    /disabled[^>]*data-testid="sandbox-mcp-honr"/.test(editFormHtml),
-  "Cockpit spec must lock shipped honr MCP checkbox",
+  /data-testid="sandbox-mcp-sandboard"[^>]*disabled/.test(editFormHtml) ||
+    /disabled[^>]*data-testid="sandbox-mcp-sandboard"/.test(editFormHtml),
+  "Cockpit spec must lock shipped sandboard MCP checkbox",
 );
-assert(editFormHtml.includes("(required)"), "Locked honr shows required label");
+assert(editFormHtml.includes("(required)"), "Locked sandboard shows required label");
 
 const nonCockpitMcpHtml = renderToString(
   React.createElement(SandboxesPanelView, {
@@ -2094,9 +2094,9 @@ const nonCockpitMcpHtml = renderToString(
   }),
 );
 assert(
-  !/data-testid="sandbox-mcp-honr"[^>]*disabled/.test(nonCockpitMcpHtml) &&
-    !/disabled[^>]*data-testid="sandbox-mcp-honr"/.test(nonCockpitMcpHtml),
-  "Non-Cockpit spec may toggle honr MCP",
+  !/data-testid="sandbox-mcp-sandboard"[^>]*disabled/.test(nonCockpitMcpHtml) &&
+    !/disabled[^>]*data-testid="sandbox-mcp-sandboard"/.test(nonCockpitMcpHtml),
+  "Non-Cockpit spec may toggle sandboard MCP",
 );
 
 const pickerHtml = renderToString(
@@ -2133,9 +2133,9 @@ const emptyBoardHtml = renderToString(
     onOpen: () => {},
   }),
 );
-assert(emptyBoardHtml.includes("board-page") || emptyBoardHtml.includes("Welcome to honr"),
+assert(emptyBoardHtml.includes("board-page") || emptyBoardHtml.includes("Welcome to sandboard"),
   "Board view should still render Board");
-assert(emptyBoardHtml.includes("Welcome to honr"), "Board empty keeps Welcome hero");
+assert(emptyBoardHtml.includes("Welcome to sandboard"), "Board empty keeps Welcome hero");
 assert(emptyBoardHtml.includes("data-testid=\"board-empty\""), "Board empty shell testid");
 assert(emptyBoardHtml.includes("Create a Project, approve its plan"),
   "Welcome lede stays consistent with on-board create");
@@ -2231,9 +2231,9 @@ assert(
 // Create Task form — matches MCP create_task (no clone_repo field); optional blockers.
 assert.strictEqual(
   cloneRepoFromProse(
-    "Clone repository: honr-app/honr into /sandbox/repo for planning.",
+    "Clone repository: sandboard-app/sandboard into /sandbox/repo for planning.",
   ),
-  "honr-app/honr",
+  "sandboard-app/sandboard",
   "cloneRepoFromProse reads stamped Project line",
 );
 assert.strictEqual(cloneRepoFromProse("no stamp"), null, "cloneRepoFromProse misses bare prose");
@@ -2248,8 +2248,8 @@ assert.strictEqual(
   "proseHasCloneRepo sees DoD stamp",
 );
 assert.strictEqual(
-  stampCloneIntoIntent("Ship it.", "honr-app/honr"),
-  "Clone repository: honr-app/honr. Ship it.",
+  stampCloneIntoIntent("Ship it.", "sandboard-app/sandboard"),
+  "Clone repository: sandboard-app/sandboard. Ship it.",
   "stampCloneIntoIntent prefixes clone line",
 );
 
@@ -2257,7 +2257,7 @@ const createTaskFormHtml = renderToString(
   React.createElement(CreateTaskForm, {
     parentId: 100,
     projectIntent:
-      "Clone repository: honr-app/honr into /sandbox/repo for planning.",
+      "Clone repository: sandboard-app/sandboard into /sandbox/repo for planning.",
     siblings: [
       { id: 9, title: "Sibling A" },
       { id: 10, title: "Sibling B" },
@@ -2284,7 +2284,7 @@ assert(createTaskFormHtml.includes('data-testid="create-task-blockers"'),
   "Create Task form exposes optional blockers when siblings exist");
 assert(createTaskFormHtml.includes('data-testid="create-task-blocker-add"'),
   "Create Task form can add a sibling blocker");
-assert(createTaskFormHtml.includes("honr-app/honr"),
+assert(createTaskFormHtml.includes("sandboard-app/sandboard"),
   "Create Task form surfaces Project default clone in hint");
 assert(createTaskFormHtml.includes("create_task"),
   "Create Task form names MCP create_task");
@@ -2388,7 +2388,7 @@ assert.strictEqual(
 );
 assert.strictEqual(
   sandboxSpecReady({
-    profiles: [{ id: "default", name: "Default", image: "honr-sandbox:latest", policy_id: "minimal" }],
+    profiles: [{ id: "default", name: "Default", image: "sandboard-sandbox:latest", policy_id: "minimal" }],
     default_sandbox_profile_id: "default",
     cockpit_sandbox_profile_id: null,
   }),

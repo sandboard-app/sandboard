@@ -310,7 +310,7 @@ impl PostgresBoardStore {
         Ok(())
     }
 
-    /// When the DB has never been populated, import `honr.json` once and stamp meta.
+    /// When the DB has never been populated, import `sandboard.json` once and stamp meta.
     /// Returns `true` if an import ran. Leaves the JSON file untouched.
     pub async fn import_json_if_empty(&self, json_path: &Path) -> Result<bool, StoreError> {
         if !self.is_empty().await? {

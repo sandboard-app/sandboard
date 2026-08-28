@@ -1,6 +1,6 @@
 //! Outbound MCP OAuth client — host-mediated connect for catalog HTTP MCP servers.
 //!
-//! Distinct from [`crate::mcp_oauth`] (honr as AS/RS for `/mcp`). Here honr is the
+//! Distinct from [`crate::mcp_oauth`] (sandboard as AS/RS for `/mcp`). Here sandboard is the
 //! OAuth **client**: discover PRM → AS → DCR → auth code + PKCE, then park tokens
 //! on an OpenShell provider (`oauth2_refresh_token`) so the gateway refreshes
 //! mid-flight and rewrites `openshell:resolve:…` placeholders on egress.
@@ -224,7 +224,7 @@ async fn oauth_start(
     if origin.is_empty() {
         return Err(api_err(
             StatusCode::BAD_REQUEST,
-            "cannot resolve public origin (Host / Origin / X-Forwarded-Host, or HONR_PUBLIC_URL)",
+            "cannot resolve public origin (Host / Origin / X-Forwarded-Host, or SANDBOARD_PUBLIC_URL)",
         ));
     }
     let redirect_uri = format!("{}{CALLBACK_PATH}", origin.trim_end_matches('/'));
@@ -232,7 +232,7 @@ async fn oauth_start(
     let client_id = register_public_client(
         &discovered.registration_endpoint,
         &redirect_uri,
-        &format!("honr mcp ({server_id})"),
+        &format!("sandboard mcp ({server_id})"),
     )
     .await
     .map_err(|e| api_err(StatusCode::BAD_GATEWAY, e))?;

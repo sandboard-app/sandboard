@@ -130,7 +130,7 @@ export function SandboxesPanelView({
   /** Cockpit uses an explicit override, else the global default. */
   const effectiveCockpitId = cockpitId ?? defaultId;
   const canDeleteSelected = !!selected && !isEditing;
-  /** Editing the Cockpit spec: shipped `honr` is required (resolve/inject re-add it). */
+  /** Editing the Cockpit spec: shipped `sandboard` is required (resolve/inject re-add it). */
   const editingCockpitSpec =
     isEditing &&
     !isCreate &&
@@ -145,7 +145,7 @@ export function SandboxesPanelView({
   };
 
   const toggleMcp = (id: string) => {
-    if (editingCockpitSpec && id === "honr") return;
+    if (editingCockpitSpec && id === "sandboard") return;
     const set = new Set(draft.mcp_server_ids);
     if (set.has(id)) set.delete(id);
     else set.add(id);
@@ -434,8 +434,8 @@ export function SandboxesPanelView({
                     <span className="dim sandbox-field-hint">
                       Config inject + policy/provider merge at create.
                       {editingCockpitSpec
-                        ? " Built-in honr stays on for Cockpit."
-                        : " Cockpit always gets built-in honr."}
+                        ? " Built-in sandboard stays on for Cockpit."
+                        : " Cockpit always gets built-in sandboard."}
                     </span>
                   </div>
                   {availableMcpServers.length === 0 ? (
@@ -446,21 +446,21 @@ export function SandboxesPanelView({
                   ) : (
                     <ul className="openshell-profile-provider-ul">
                       {availableMcpServers.map((s) => {
-                        const lockedHonr =
-                          editingCockpitSpec && s.id === "honr";
+                        const lockedSandboard =
+                          editingCockpitSpec && s.id === "sandboard";
                         const checked =
-                          lockedHonr || draft.mcp_server_ids.includes(s.id);
+                          lockedSandboard || draft.mcp_server_ids.includes(s.id);
                         return (
                           <li key={s.id}>
                             <label className="openshell-provider-check">
                               <input
                                 type="checkbox"
                                 checked={checked}
-                                disabled={busy || lockedHonr}
+                                disabled={busy || lockedSandboard}
                                 onChange={() => toggleMcp(s.id)}
                                 data-testid={`sandbox-mcp-${s.id}`}
                                 title={
-                                  lockedHonr
+                                  lockedSandboard
                                     ? "Required for Cockpit — cannot detach"
                                     : undefined
                                 }
@@ -468,7 +468,7 @@ export function SandboxesPanelView({
                               <span className="openshell-provider-check-text">
                                 <span className="openshell-provider-check-name">
                                   {s.name}
-                                  {lockedHonr ? " (required)" : ""}
+                                  {lockedSandboard ? " (required)" : ""}
                                 </span>
                                 <span className="dim openshell-provider-check-type">
                                   {s.transport.kind} · {s.audience ?? "cockpit"}
@@ -876,8 +876,8 @@ export function SandboxesPanel() {
           (draft.id.trim() === effectiveCockpit ||
             editingId === effectiveCockpit);
         let mcp_server_ids = [...draft.mcp_server_ids];
-        if (savingCockpit && !mcp_server_ids.includes("honr")) {
-          mcp_server_ids = ["honr", ...mcp_server_ids];
+        if (savingCockpit && !mcp_server_ids.includes("sandboard")) {
+          mcp_server_ids = ["sandboard", ...mcp_server_ids];
         }
         const body = {
           ...(editingId ? { id: draft.id.trim() } : {}),

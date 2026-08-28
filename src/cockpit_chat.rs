@@ -110,15 +110,15 @@ fn turn_script(
         model,
     )?;
     let conv_export = resume_id
-        .map(|c| format!("export HONR_CONVERSATION={}\n", shell_quote(c)))
+        .map(|c| format!("export SANDBOARD_CONVERSATION={}\n", shell_quote(c)))
         .unwrap_or_default();
     let inference_exports = crate::engine::anthropic_inference_exports(engine);
     let agy_cloud = if engine.trim() == "agy" {
         format!(
             "{agy_cloud_exports}export PATH=/sandbox/.local/bin:$PATH\n\
              set -a\n\
-             [ -f /sandbox/.gemini/antigravity-cli/honr-cloud.env ] && \
-             . /sandbox/.gemini/antigravity-cli/honr-cloud.env\n\
+             [ -f /sandbox/.gemini/antigravity-cli/sandboard-cloud.env ] && \
+             . /sandbox/.gemini/antigravity-cli/sandboard-cloud.env\n\
              set +a\n"
         )
     } else {
@@ -126,7 +126,7 @@ fn turn_script(
     };
     Ok(format!(
         r#"set -e
-export HONR_PROMPT={prompt}
+export SANDBOARD_PROMPT={prompt}
 {agy_cloud}{inference_exports}{conv_export}cd {WORKDIR} 2>/dev/null || cd /
 timeout --foreground {secs} {cmd}"#,
         prompt = shell_quote(prompt),
@@ -310,7 +310,7 @@ mod tests {
         Arc::new(Board::new(
             Schema::default(),
             std::env::temp_dir().join(format!(
-                "honr-test-cockpit-chat-{}.json",
+                "sandboard-test-cockpit-chat-{}.json",
                 std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)
                     .unwrap()
@@ -322,9 +322,9 @@ mod tests {
     #[test]
     fn turn_script_resumes_cursor_conversation() {
         let s = turn_script("cursor", "triage Needs You", Some("conv-abc"), "", None).unwrap();
-        assert!(s.contains("--resume \"$HONR_CONVERSATION\""), "{s}");
-        assert!(s.contains("HONR_CONVERSATION='conv-abc'"), "{s}");
-        assert!(s.contains("HONR_PROMPT='triage Needs You'"), "{s}");
+        assert!(s.contains("--resume \"$SANDBOARD_CONVERSATION\""), "{s}");
+        assert!(s.contains("SANDBOARD_CONVERSATION='conv-abc'"), "{s}");
+        assert!(s.contains("SANDBOARD_PROMPT='triage Needs You'"), "{s}");
         assert!(s.contains("timeout --foreground"), "{s}");
         assert!(!s.contains("setsid nohup"), "chat turns are foreground: {s}");
     }
@@ -345,10 +345,10 @@ mod tests {
             s.contains(&format!("--model '{}'", crate::antigravity::DEFAULT_SEAT_MODEL)),
             "{s}"
         );
-        assert!(s.contains("--conversation \"$HONR_CONVERSATION\""), "{s}");
-        assert!(s.contains("-p \"$HONR_PROMPT\""), "{s}");
+        assert!(s.contains("--conversation \"$SANDBOARD_CONVERSATION\""), "{s}");
+        assert!(s.contains("-p \"$SANDBOARD_PROMPT\""), "{s}");
         let model_at = s.find("--model").expect("model");
-        let p_at = s.find("-p \"$HONR_PROMPT\"").expect("-p");
+        let p_at = s.find("-p \"$SANDBOARD_PROMPT\"").expect("-p");
         assert!(model_at < p_at, "{s}");
     }
 
@@ -357,7 +357,7 @@ mod tests {
         let s = turn_script("cursor", "hello", None, "", Some("gpt-5")).unwrap();
         assert!(s.contains("--model 'gpt-5'"), "{s}");
         let model_at = s.find("--model").expect("model");
-        let prompt_at = s.find("\"$HONR_PROMPT\"").expect("prompt");
+        let prompt_at = s.find("\"$SANDBOARD_PROMPT\"").expect("prompt");
         assert!(model_at < prompt_at, "{s}");
     }
 
@@ -365,8 +365,8 @@ mod tests {
     fn turn_script_without_conversation_starts_fresh_in_seat() {
         let s = turn_script("cursor", "first prompt", None, "", None).unwrap();
         assert!(!s.contains("--resume"), "{s}");
-        assert!(!s.contains("HONR_CONVERSATION="), "{s}");
-        assert!(s.contains("HONR_PROMPT='first prompt'"), "{s}");
+        assert!(!s.contains("SANDBOARD_CONVERSATION="), "{s}");
+        assert!(s.contains("SANDBOARD_PROMPT='first prompt'"), "{s}");
     }
 
     #[test]
@@ -385,17 +385,17 @@ mod tests {
     fn turn_script_opencode_fresh_and_resume() {
         let fresh = turn_script("opencode", "hi", None, "", None).unwrap();
         assert!(
-            fresh.contains("opencode run --format json --auto \"$HONR_PROMPT\""),
+            fresh.contains("opencode run --format json --auto \"$SANDBOARD_PROMPT\""),
             "{fresh}"
         );
         assert!(!fresh.contains("--session"), "{fresh}");
 
         let resume = turn_script("opencode", "again", Some("ses_1"), "", None).unwrap();
         assert!(
-            resume.contains("--session \"$HONR_CONVERSATION\""),
+            resume.contains("--session \"$SANDBOARD_CONVERSATION\""),
             "{resume}"
         );
-        assert!(resume.contains("HONR_CONVERSATION='ses_1'"), "{resume}");
+        assert!(resume.contains("SANDBOARD_CONVERSATION='ses_1'"), "{resume}");
     }
 
     #[test]
@@ -403,10 +403,10 @@ mod tests {
         let s = turn_script("claude", "hello", Some("cid"), "", None).unwrap();
         assert!(!s.contains("--conversation"), "{s}");
         assert!(!s.contains("--resume"), "{s}");
-        assert!(!s.contains("HONR_CONVERSATION="), "{s}");
+        assert!(!s.contains("SANDBOARD_CONVERSATION="), "{s}");
         assert!(
             s.contains(
-                "claude --bare --strict-mcp-config --mcp-config /sandbox/.honr/mcp/claude_mcp.json -p \"$HONR_PROMPT\""
+                "claude --bare --strict-mcp-config --mcp-config /sandbox/.sandboard/mcp/claude_mcp.json -p \"$SANDBOARD_PROMPT\""
             ),
             "{s}"
         );
@@ -430,7 +430,7 @@ mod tests {
             err.message
         );
 
-        b.update_cockpit_session(Some("honr-cockpit".into()), None)
+        b.update_cockpit_session(Some("sandboard-cockpit".into()), None)
             .expect("env");
         b.park_cockpit_session().expect("park");
         let err = ready_target(&b).expect_err("parked");
@@ -438,7 +438,7 @@ mod tests {
 
         b.resume_cockpit_session().expect("resume");
         let (env, cid, engine) = ready_target(&b).expect("running");
-        assert_eq!(env, "honr-cockpit");
+        assert_eq!(env, "sandboard-cockpit");
         assert!(cid.is_none());
         assert!(!engine.is_empty());
     }
@@ -446,10 +446,10 @@ mod tests {
     #[test]
     fn ready_target_passes_conversation_id_through() {
         let b = board();
-        b.create_cockpit_session(Some("honr-cockpit".into()), Some("conv-9".into()))
+        b.create_cockpit_session(Some("sandboard-cockpit".into()), Some("conv-9".into()))
             .expect("create");
         let (env, cid, _) = ready_target(&b).expect("ready");
-        assert_eq!(env, "honr-cockpit");
+        assert_eq!(env, "sandboard-cockpit");
         assert_eq!(cid.as_deref(), Some("conv-9"));
     }
 
@@ -476,7 +476,7 @@ mod tests {
     #[tokio::test]
     async fn cockpit_chat_route_refuses_empty_prompt() {
         let b = board();
-        b.create_cockpit_session(Some("honr-cockpit".into()), None)
+        b.create_cockpit_session(Some("sandboard-cockpit".into()), None)
             .expect("create");
         let mut app = Router::new().nest("/api", routes()).with_state(b);
         let req = Request::builder()
@@ -498,7 +498,7 @@ mod tests {
     #[tokio::test]
     async fn cockpit_chat_route_refuses_parked_session() {
         let b = board();
-        b.create_cockpit_session(Some("honr-cockpit".into()), Some("c1".into()))
+        b.create_cockpit_session(Some("sandboard-cockpit".into()), Some("c1".into()))
             .expect("create");
         b.park_cockpit_session().expect("park");
         let mut app = Router::new().nest("/api", routes()).with_state(b);
@@ -521,7 +521,7 @@ mod tests {
     #[tokio::test]
     async fn cockpit_chat_route_streams_agent_lines_when_running() {
         let path = std::env::temp_dir().join(format!(
-            "honr-test-cockpit-chat-stream-{}.json",
+            "sandboard-test-cockpit-chat-stream-{}.json",
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
@@ -553,7 +553,7 @@ mod tests {
             Duration::from_secs(5),
         ));
         let b: SharedBoard = Arc::new(board);
-        b.create_cockpit_session(Some("honr-cockpit".into()), Some("conv-old".into()))
+        b.create_cockpit_session(Some("sandboard-cockpit".into()), Some("conv-old".into()))
             .expect("create");
 
         let mut app = Router::new().nest("/api", routes()).with_state(b.clone());
@@ -580,7 +580,7 @@ mod tests {
             body.contains("event:ready") || body.contains("event: ready"),
             "{body}"
         );
-        assert!(body.contains("honr-cockpit"), "{body}");
+        assert!(body.contains("sandboard-cockpit"), "{body}");
         assert!(
             body.contains("event:agent")
                 || body.contains("event: agent")
@@ -599,7 +599,7 @@ mod tests {
     #[tokio::test]
     async fn cockpit_chat_does_not_create_or_stop_session() {
         let path = std::env::temp_dir().join(format!(
-            "honr-test-cockpit-chat-lifecycle-{}.json",
+            "sandboard-test-cockpit-chat-lifecycle-{}.json",
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
@@ -615,7 +615,7 @@ mod tests {
             Duration::from_secs(5),
         ));
         let b: SharedBoard = Arc::new(board);
-        b.create_cockpit_session(Some("honr-cockpit".into()), None)
+        b.create_cockpit_session(Some("sandboard-cockpit".into()), None)
             .expect("create");
 
         let mut app = Router::new().nest("/api", routes()).with_state(b.clone());
@@ -633,6 +633,6 @@ mod tests {
 
         let session = b.cockpit_session().expect("session must remain");
         assert_eq!(session.status, CockpitSessionStatus::Running);
-        assert_eq!(session.environment.as_deref(), Some("honr-cockpit"));
+        assert_eq!(session.environment.as_deref(), Some("sandboard-cockpit"));
     }
 }

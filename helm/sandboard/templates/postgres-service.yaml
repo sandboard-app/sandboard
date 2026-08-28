@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "sandboard.postgres.serviceName" . }}
+  labels:
+    {{- include "sandboard.labels" . | nindent 4 }}
+    {{- include "sandboard.postgres.selectorLabels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - port: 5432
+      targetPort: postgres
+      protocol: TCP
+      name: postgres
+  selector:
+    {{- include "sandboard.postgres.selectorLabels" . | nindent 4 }}

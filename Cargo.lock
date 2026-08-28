@@ -1153,58 +1153,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "honr"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "argon2",
- "async-trait",
- "axum",
- "axum-extra",
- "base64 0.23.0",
- "chacha20poly1305",
- "chrono",
- "dirs",
- "futures",
- "hex",
- "hmac 0.13.0",
- "hyper",
- "hyper-util",
- "jsonwebtoken",
- "oauth2",
- "openshell-core",
- "openshell-policy",
- "openshell-providers",
- "openshell-sdk",
- "parking_lot",
- "prost",
- "prost-types",
- "rand 0.10.2",
- "reqwest 0.13.4",
- "rmcp",
- "rustls",
- "schemars",
- "serde",
- "serde_json",
- "serde_urlencoded",
- "serde_yaml",
- "sha2 0.11.0",
- "sqlx",
- "tar",
- "thiserror 2.0.19",
- "time",
- "tokio",
- "tokio-stream",
- "tonic",
- "tonic-prost",
- "tower",
- "tower-http",
- "tower-service",
- "tracing",
- "tracing-subscriber",
-]
-
-[[package]]
 name = "http"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2873,6 +2821,58 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "93fc1dc3aaa9bfed95e02e6eadabb4baf7e3078b0bd1b4d7b6b0b68378900502"
 dependencies = [
  "winapi-util",
+]
+
+[[package]]
+name = "sandboard"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "argon2",
+ "async-trait",
+ "axum",
+ "axum-extra",
+ "base64 0.23.0",
+ "chacha20poly1305",
+ "chrono",
+ "dirs",
+ "futures",
+ "hex",
+ "hmac 0.13.0",
+ "hyper",
+ "hyper-util",
+ "jsonwebtoken",
+ "oauth2",
+ "openshell-core",
+ "openshell-policy",
+ "openshell-providers",
+ "openshell-sdk",
+ "parking_lot",
+ "prost",
+ "prost-types",
+ "rand 0.10.2",
+ "reqwest 0.13.4",
+ "rmcp",
+ "rustls",
+ "schemars",
+ "serde",
+ "serde_json",
+ "serde_urlencoded",
+ "serde_yaml",
+ "sha2 0.11.0",
+ "sqlx",
+ "tar",
+ "thiserror 2.0.19",
+ "time",
+ "tokio",
+ "tokio-stream",
+ "tonic",
+ "tonic-prost",
+ "tower",
+ "tower-http",
+ "tower-service",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]

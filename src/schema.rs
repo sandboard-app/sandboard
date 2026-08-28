@@ -24,7 +24,7 @@ pub struct Level {
 
 /// How work actually gets executed. The run budget is
 /// `agents.agent_timeout_secs`; `lease_secs` / `heartbeat_expect_secs` /
-/// `sweep_interval_ms` are ignored leftovers kept so older `honr.yaml` files
+/// `sweep_interval_ms` are ignored leftovers kept so older `sandboard.yaml` files
 /// still parse. Live sweep interval is Settings → Agent runtime.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExecutionConfig {
@@ -221,7 +221,7 @@ pub struct AgentConfig {
     pub max_attempts: u32,
 }
 
-fn d_image() -> String { "honr-sandbox:latest".into() }
+fn d_image() -> String { "sandboard-sandbox:latest".into() }
 /// Marker: resolve to the built-in worker seed policy (not a host file).
 fn d_policy() -> String { "embedded".into() }
 fn d_engine() -> String { "cursor".into() }
@@ -229,25 +229,25 @@ fn d_concurrent() -> usize { 2 }
 fn d_agent_timeout() -> u64 { 1800 }
 fn d_max_attempts() -> u32 { 3 }
 
-/// Fixed stem for card branches / sandboxes / cockpit (`honr/card-N`, …).
-pub const BRANCH_STEM: &str = "honr";
+/// Fixed stem for card branches / sandboxes / cockpit (`sandboard/card-N`, …).
+pub const BRANCH_STEM: &str = "sandboard";
 
-/// Card feature branch: `honr/card-{id}`.
+/// Card feature branch: `sandboard/card-{id}`.
 pub fn card_branch_name(id: impl std::fmt::Display) -> String {
     format!("{BRANCH_STEM}/card-{id}")
 }
 
-/// Sandbox name: `honr-card-{id}-a{attempt}`.
+/// Sandbox name: `sandboard-card-{id}-a{attempt}`.
 pub fn card_sandbox_name(id: impl std::fmt::Display, attempt: u32) -> String {
     format!("{BRANCH_STEM}-card-{id}-a{attempt}")
 }
 
-/// Prefix match stem for reconcile keep: `honr-card-{id}-`.
+/// Prefix match stem for reconcile keep: `sandboard-card-{id}-`.
 pub fn card_sandbox_stem(id: impl std::fmt::Display) -> String {
     format!("{BRANCH_STEM}-card-{id}-")
 }
 
-/// Stable singleton name for the control-plane cockpit: `honr-cockpit`.
+/// Stable singleton name for the control-plane cockpit: `sandboard-cockpit`.
 pub fn cockpit_sandbox_name() -> String {
     format!("{BRANCH_STEM}-cockpit")
 }
@@ -321,7 +321,7 @@ pub fn default_levels() -> Vec<Level> {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Schema {
     /// Always Project + Task. Serde default fills compiled levels when absent
-    /// from a leftover yaml fixture; boot no longer reads `honr.yaml`.
+    /// from a leftover yaml fixture; boot no longer reads `sandboard.yaml`.
     #[serde(default = "default_levels")]
     pub levels: Vec<Level>,
     #[serde(default)]
@@ -370,8 +370,8 @@ mod tests {
     fn workable() -> AgentConfig {
         AgentConfig {
             repo: RepoConfig {
-                upstream: "honr-app/honr".into(),
-                fork: "clankrshq/honr".into(),
+                upstream: "sandboard-app/sandboard".into(),
+                fork: "clankrshq/sandboard".into(),
                 base: "main".into(),
             },
             ..Default::default()
@@ -423,11 +423,11 @@ mod tests {
     }
 
     #[test]
-    fn card_branch_and_sandbox_names_are_fixed_honr() {
-        assert_eq!(card_branch_name(7), "honr/card-7");
-        assert_eq!(card_sandbox_name(7, 2), "honr-card-7-a2");
-        assert_eq!(card_sandbox_stem(9), "honr-card-9-");
-        assert_eq!(cockpit_sandbox_name(), "honr-cockpit");
+    fn card_branch_and_sandbox_names_are_fixed_sandboard() {
+        assert_eq!(card_branch_name(7), "sandboard/card-7");
+        assert_eq!(card_sandbox_name(7, 2), "sandboard-card-7-a2");
+        assert_eq!(card_sandbox_stem(9), "sandboard-card-9-");
+        assert_eq!(cockpit_sandbox_name(), "sandboard-cockpit");
     }
 
     #[test]
@@ -440,7 +440,7 @@ levels:
     claimable: true
 board:
   database:
-    url: postgres://honr:honr@127.0.0.1:5432/honr
+    url: postgres://sandboard:sandboard@127.0.0.1:5432/sandboard
 "#;
         let s: Schema = serde_yaml::from_str(raw).expect("yaml");
         let db = s.board.database.parsed().expect("postgres url");
@@ -449,7 +449,7 @@ board:
 
     #[test]
     fn parse_owner_name_accepts_github_style() {
-        assert_eq!(parse_owner_name(" honr-app/honr ").unwrap(), "honr-app/honr");
+        assert_eq!(parse_owner_name(" sandboard-app/sandboard ").unwrap(), "sandboard-app/sandboard");
         assert_eq!(parse_owner_name("acme/widgets.git").unwrap(), "acme/widgets");
         assert!(parse_owner_name("").is_err());
         assert!(parse_owner_name("noslash").is_err());
@@ -459,10 +459,10 @@ board:
 
     #[test]
     fn clone_repo_from_prose_reads_stamped_line() {
-        let text = "Rework settings.\n\nClone repository: honr-app/honr into /sandbox/repo for planning and as the default Task clone target.\n";
+        let text = "Rework settings.\n\nClone repository: sandboard-app/sandboard into /sandbox/repo for planning and as the default Task clone target.\n";
         assert_eq!(
             clone_repo_from_prose(text).as_deref(),
-            Some("honr-app/honr")
+            Some("sandboard-app/sandboard")
         );
         assert!(clone_repo_from_prose("no stamp here").is_none());
     }

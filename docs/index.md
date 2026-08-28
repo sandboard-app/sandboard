@@ -1,12 +1,12 @@
-# honr
+# sandboard
 
-**honr** is a board you point at a repository. You describe what you want; it
+**sandboard** is a board you point at a repository. You describe what you want; it
 runs coding agents in sandboxes; pull requests come back for you to merge.
 
 Moving a card starts an agent. Answering a question unblocks one. Approving a
 plan creates the tasks.
 
-![The honr board: Backlog, Running, Needs You, Review, Done](images/desktop-board.png)
+![The sandboard board: Backlog, Running, Needs You, Review, Done](images/desktop-board.png)
 
 ## What a turn looks like
 
@@ -16,7 +16,7 @@ plan creates the tasks.
 3. Agents claim cards, work in isolated sandboxes, and open pull requests.
 4. Cards that need a decision stop and wait in **Needs You** — costing nothing
    while they do.
-5. You review the PRs and merge on GitHub. Approving in honr shows the PR; it
+5. You review the PRs and merge on GitHub. Approving in sandboard shows the PR; it
    does not merge.
 
 The [Tour](tour.md) walks that loop with screenshots and needs nothing
@@ -24,7 +24,7 @@ installed.
 
 ## Is this for you?
 
-honr is for someone who wants several agents working a repository at once, and
+sandboard is for someone who wants several agents working a repository at once, and
 wants one place to steer them from. It assumes you are comfortable reviewing
 pull requests and running a service on your own machine.
 
@@ -50,5 +50,5 @@ dispatch a card.
 Machine contracts, not prose: [`schemas/report.schema.json`](schemas/report.schema.json).
 Live agent bootstrap (same origin as the board): `GET /llms.txt`.
 
-honr is under active development and is used to ship changes to itself. Expect
+sandboard is under active development and is used to ship changes to itself. Expect
 sharp edges.

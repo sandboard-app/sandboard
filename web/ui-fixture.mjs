@@ -1,10 +1,10 @@
 /**
  * A board dense enough to judge the UI against — Project + flat Tasks.
  *
- * Writes a `honr.json` directly rather than driving the API, because the
+ * Writes a `sandboard.json` directly rather than driving the API, because the
  * states worth looking at are exactly the ones no public verb can produce.
  *
- *   node ui-fixture.mjs > /tmp/honr-ui/honr.json
+ *   node ui-fixture.mjs > /tmp/sandboard-ui/sandboard.json
  */
 
 const NOW = Date.now();
@@ -71,7 +71,7 @@ const project = item({
   level: "Project",
   above_line: true,
   pinned: [
-    "Merging is a human action. Approving in honr surfaces the PR; it never merges it.",
+    "Merging is a human action. Approving in sandboard surfaces the PR; it never merges it.",
     "Everything in the sandbox stack fails as a hang, not an error.",
   ],
 });
@@ -105,7 +105,7 @@ const taskD = task("Observe cost during the run", "Spend only arrives in the fin
   blocked_by: [taskB, taskC],
   since: 900,
 });
-task("Re-adopt live sandboxes on restart", "A rebuilt honr should resume watching a run, not kill it.", {
+task("Re-adopt live sandboxes on restart", "A rebuilt sandboard should resume watching a run, not kill it.", {
   since: 600,
 });
 task("Split from inside the sandbox", "Work bigger than its card should become sibling tasks, not nest.", {
@@ -121,7 +121,7 @@ task("Receipt copy for the digest", "Plain-language wording for the phone view."
 item({
   parent: project,
   title: "Verdict file protocol",
-  intent: "An agent needs a way to hand a decision back without a network path to honr.",
+  intent: "An agent needs a way to hand a decision back without a network path to sandboard.",
   definition_of_done: "escalate.json with two options lands the card in Needs You.",
   state: "running",
   level: "Task",
@@ -129,7 +129,7 @@ item({
   lease: lease("sandbox-12", 2),
   model: "claude-opus-5",
   progress: 0.62,
-  environment: "honr-card-12-a1",
+  environment: "sandboard-card-12-a1",
   since: 840,
 });
 
@@ -144,7 +144,7 @@ item({
   lease: lease("sandbox-13", 14),
   model: "claude-opus-5",
   progress: 0.18,
-  environment: "honr-card-13-a1",
+  environment: "sandboard-card-13-a1",
   since: 200,
 });
 
@@ -159,7 +159,7 @@ item({
   lease: lease("sandbox-14", 47),
   model: "claude-opus-5",
   progress: 0.91,
-  environment: "honr-card-14-a2",
+  environment: "sandboard-card-14-a2",
   run_failures: 1,
   since: 1500,
 });
@@ -180,7 +180,7 @@ item({
   since: 1080,
   escalation: {
     question:
-      "Two cards want to touch honr/card-8. Force-push would drop whichever landed first. Which wins?",
+      "Two cards want to touch sandboard/card-8. Force-push would drop whichever landed first. Which wins?",
     options: [
       {
         label: "Serialise on the branch",
@@ -214,7 +214,7 @@ item({
   level: "Task",
   capability: "any",
   progress: 1,
-  environment: "honr-card-10-a1",
+  environment: "sandboard-card-10-a1",
   since: 180,
   proposal: {
     summary:
@@ -225,28 +225,28 @@ item({
         key: "verifier",
         title: "Clean-checkout verifier",
         intent: "Gates should run where the agent cannot reach them.",
-        definition_of_done: "Gates run in a sandbox created from the pushed branch (honr-app/honr).",
+        definition_of_done: "Gates run in a sandbox created from the pushed branch (sandboard-app/sandboard).",
         blocked_by_keys: [],
       },
       {
         key: "checks",
         title: "Surface PR checks on the Review card",
         intent: "CI is the mechanical gate; the board should show it.",
-        definition_of_done: "A Review card renders its PR check state (honr-app/honr).",
+        definition_of_done: "A Review card renders its PR check state (sandboard-app/sandboard).",
         blocked_by_keys: ["verifier"],
       },
       {
         key: "diffstat",
         title: "Report the real diffstat",
         intent: "Review sorts by a blast radius it does not actually know.",
-        definition_of_done: "report.json carries added/removed and the card renders it (honr-app/honr).",
+        definition_of_done: "report.json carries added/removed and the card renders it (sandboard-app/sandboard).",
         blocked_by_keys: ["verifier"],
       },
       {
         key: "cost",
         title: "Observe cost during the run",
         intent: "Spend only arrives in the final message, so no cap can interrupt.",
-        definition_of_done: "Running cards show spend before the agent finishes (honr-app/honr).",
+        definition_of_done: "Running cards show spend before the agent finishes (sandboard-app/sandboard).",
         blocked_by_keys: ["checks", "diffstat"],
       },
     ],
@@ -259,14 +259,14 @@ item({
   parent: project,
   title: "Attempt-scoped sandbox names",
   intent: "A retry must not collide with the sandbox kept for inspection.",
-  definition_of_done: "A second attempt creates honr-card-N-a2.",
+  definition_of_done: "A second attempt creates sandboard-card-N-a2.",
   state: "review",
   level: "Task",
   capability: "any",
   progress: 1,
   diff_added: 34,
   diff_removed: 8,
-  pull_request: { url: "https://github.com/example/honr/pull/20" },
+  pull_request: { url: "https://github.com/example/sandboard/pull/20" },
   since: 45,
 });
 
@@ -281,8 +281,8 @@ item({
   progress: 1,
   diff_added: 25,
   diff_removed: 0,
-  pull_request: { url: "https://github.com/honr-app/honr/pull/1" },
-  environment: "honr-card-8-a1",
+  pull_request: { url: "https://github.com/sandboard-app/sandboard/pull/1" },
+  environment: "sandboard-card-8-a1",
   gates: [{ name: "agent-reported", status: "passed", detail: "3 gates passed" }],
   since: 300,
 });
@@ -299,8 +299,8 @@ item({
   diff_added: 318,
   diff_removed: 96,
   gate_failures: 2,
-  pull_request: { url: "https://github.com/honr-app/honr/pull/4" },
-  environment: "honr-card-17-a3",
+  pull_request: { url: "https://github.com/sandboard-app/sandboard/pull/4" },
+  environment: "sandboard-card-17-a3",
   gates: [{ name: "agent-reported", status: "passed", detail: "3 gates passed" }],
   since: 5400,
 });
@@ -332,7 +332,7 @@ for (const [title, added, removed] of [
 const stories = {
   [project]: [
     { at: iso(5400), text: "Phase 2 started: supervisor lands, first sandbox boots." },
-    { at: iso(1800), text: "honr opened its own first PR (#1) for $1.22." },
+    { at: iso(1800), text: "sandboard opened its own first PR (#1) for $1.22." },
     { at: iso(300), text: "Two cards in review; one agent blocked on a branch policy call." },
   ],
 };

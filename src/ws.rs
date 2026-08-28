@@ -48,7 +48,8 @@ fn sha1(input: &[u8]) -> [u8; 20] {
     }
     msg.extend_from_slice(&bit_len.to_be_bytes());
 
-    for chunk in msg.chunks_exact(64) {
+    let (blocks, _tail) = msg.as_chunks::<64>();
+    for chunk in blocks {
         let mut w = [0u32; 80];
         for i in 0..16 {
             w[i] = u32::from_be_bytes([chunk[i * 4], chunk[i * 4 + 1], chunk[i * 4 + 2], chunk[i * 4 + 3]]);
@@ -369,7 +370,7 @@ mod tests {
         let b = Arc::new(
             Board::new(
                 Schema::default(),
-                std::env::temp_dir().join(format!("honr-ws-test-{}.json", std::process::id())),
+                std::env::temp_dir().join(format!("sandboard-ws-test-{}.json", std::process::id())),
             )
             .with_buffer_capacity(10),
         );

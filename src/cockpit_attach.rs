@@ -4,7 +4,7 @@
 //! `ExecSandboxInteractive` into the Board-named cockpit sandbox and relay bytes.
 //! Board `cockpit_session` stays authoritative — this module never parks, resumes,
 //! or stops the session. Host `openshell sandbox connect` remains a manual CLI
-//! path; honr does not shell out to launch editors.
+//! path; sandboard does not shell out to launch editors.
 //!
 //! Attach launches the **Cockpit sandbox-spec engine** (Settings → OpenShell →
 //! Sandbox specs), not a bare shell. Cursor still uses interactive `agent`
@@ -123,8 +123,8 @@ pub(crate) fn attach_agent_command(
         // pins /usr/local/bin/agy to the image hash).
         "export PATH=/sandbox/.local/bin:$PATH\n\
          set -a\n\
-         [ -f /sandbox/.gemini/antigravity-cli/honr-cloud.env ] && \
-         . /sandbox/.gemini/antigravity-cli/honr-cloud.env\n\
+         [ -f /sandbox/.gemini/antigravity-cli/sandboard-cloud.env ] && \
+         . /sandbox/.gemini/antigravity-cli/sandboard-cloud.env\n\
          set +a\n"
     } else {
         ""
@@ -522,7 +522,7 @@ mod tests {
             Board::new(
                 Schema::default(),
                 std::env::temp_dir().join(format!(
-                    "honr-cockpit-attach-test-{}-{}.json",
+                    "sandboard-cockpit-attach-test-{}-{}.json",
                     std::process::id(),
                     std::time::SystemTime::now()
                         .duration_since(std::time::UNIX_EPOCH)
@@ -540,9 +540,9 @@ mod tests {
         assert!(ready_environment(&b).is_err());
 
         let _ = b
-            .create_cockpit_session(Some("honr-cockpit".into()), None)
+            .create_cockpit_session(Some("sandboard-cockpit".into()), None)
             .expect("create");
-        assert_eq!(ready_environment(&b).expect("env"), "honr-cockpit");
+        assert_eq!(ready_environment(&b).expect("env"), "sandboard-cockpit");
 
         let _ = b.park_cockpit_session().expect("park");
         let err = ready_environment(&b).unwrap_err();
@@ -669,7 +669,7 @@ mod tests {
             script.contains("GOOGLE_CLOUD_PROJECT='shanemcd-rh'"),
             "{script}"
         );
-        assert!(script.contains("honr-cloud.env"), "{script}");
+        assert!(script.contains("sandboard-cloud.env"), "{script}");
     }
 
     #[test]

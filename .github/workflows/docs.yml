@@ -1,10 +1,10 @@
 name: Docs
 
-# Build mdBook here; publish HTML to honr-app/honr-app.github.io
-# → https://honr-app.github.io/
+# Build mdBook here; publish HTML to sandboard-app/sandboard-app.github.io
+# → https://sandboard-app.github.io/
 #
 # Secret PAGES_DEPLOY_KEY: private half of a write deploy key on
-# honr-app/honr-app.github.io (org deploy keys must be enabled).
+# sandboard-app/sandboard-app.github.io (org deploy keys must be enabled).
 
 on:
   push:
@@ -66,18 +66,18 @@ jobs:
           shared-key: rust
           save-if: false
 
-      # The harness serves the fixture from a real honr. Its fallback mock
+      # The harness serves the fixture from a real sandboard. Its fallback mock
       # server answers a snapshot shape the board no longer emits, so strict
       # mode below refuses to run without this binary.
-      - name: Build honr
-        run: cargo build --bin honr
+      - name: Build sandboard
+        run: cargo build --bin sandboard
 
       - name: Install Playwright chromium
         run: npx --prefix web playwright install --with-deps chromium
 
       - name: Capture board screenshots
         env:
-          HONR_SHOTS_STRICT: "1"
+          SANDBOARD_SHOTS_STRICT: "1"
         run: npm run --prefix web shots
 
       - uses: actions/upload-artifact@v4
@@ -126,12 +126,12 @@ jobs:
           MDBOOK_OUTPUT__HTML__SITE_URL: /
         run: mdbook build
 
-      - name: Publish to honr-app.github.io
+      - name: Publish to sandboard-app.github.io
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         uses: peaceiris/actions-gh-pages@v4
         with:
           deploy_key: ${{ secrets.PAGES_DEPLOY_KEY }}
-          external_repository: honr-app/honr-app.github.io
+          external_repository: sandboard-app/sandboard-app.github.io
           publish_branch: main
           publish_dir: ./target/mdbook
           # Orphan commits keep the pages repo = HTML only (legacy branch Pages).

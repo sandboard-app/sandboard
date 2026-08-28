@@ -1,7 +1,7 @@
 # OpenShell provider type for CRC / MicroShift / OCP API access from a
 # Podman (or in-cluster) sandbox.
 #
-# Honr seals KUBE_TOKEN; the sandbox proxy rewrites Bearer on MITM
+# Sandboard seals KUBE_TOKEN; the sandbox proxy rewrites Bearer on MITM
 # (protocol: rest). Host-side Podman seats reach the cluster through the
 # Tailscale Kubernetes operator's API proxy
 # (`https://microshift-operator.<tailnet>.ts.net`) — same trust pattern as

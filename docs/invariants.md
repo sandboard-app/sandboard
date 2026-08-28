@@ -1,6 +1,6 @@
 # Invariants
 
-Properties honr will not trade away as the surface grows, and why each one
+Properties sandboard will not trade away as the surface grows, and why each one
 matters. If a change would break one of these, the change is wrong.
 
 ## One state machine
@@ -13,12 +13,12 @@ logic.
 `api.rs` is a rule MCP does not have, and the first time those disagree you have
 two products.
 
-## Workers cannot reach honr
+## Workers cannot reach sandboard
 
-The card agent gets no network path to honr. The supervisor calls `claim` /
+The card agent gets no network path to sandboard. The supervisor calls `claim` /
 `heartbeat` / `report` on its behalf.
 
-*Why:* an agent that could reach honr's MCP could approve its own review. The
+*Why:* an agent that could reach sandboard's MCP could approve its own review. The
 containment is what makes the review boundary real.
 
 ## Liveness is observed
@@ -32,18 +32,18 @@ the lease exists to catch.
 
 ## Merging is human
 
-Approving in honr surfaces the pull request. It does not merge.
+Approving in sandboard surfaces the pull request. It does not merge.
 
 *Why:* merge is irreversible and needs a human. A card that passes every gate
 can still be building the wrong thing.
 
 ## Feature branches are writable; the default branch is human-gated
 
-Agents push `honr/card-*` and open PRs. A repository ruleset keeps the default
+Agents push `sandboard/card-*` and open PRs. A repository ruleset keeps the default
 branch owner-only.
 
 *Why:* defence in depth for the rule above. The boundary should hold even if
-honr has a bug.
+sandboard has a bug.
 
 ## Everything in the sandbox stack fails as a hang
 
@@ -69,14 +69,14 @@ arguing with its past is not.
 `machine.rs` holds the lifecycle invariants; other modules test what breaks
 silently — argv shape, shell quoting, config validation.
 
-## Working on honr
+## Working on sandboard
 
 ```bash
 cargo test
 cargo clippy --all-targets -- -D warnings
 ```
 
-Both must be clean. A card's sandbox has no pre-baked honr build cache —
+Both must be clean. A card's sandbox has no pre-baked sandboard build cache —
 `cargo`/`npm` reach crates.io/npm live (see [Sandbox](sandbox.md#image)) — so
 `--offline` no longer applies there; `--locked` still does.
 
@@ -100,6 +100,6 @@ cp web/shots/*.png docs/images/
 ```
 
 CI publishes `target/mdbook` to
-[`honr-app/honr-app.github.io`](https://github.com/honr-app/honr-app.github.io)
+[`sandboard-app/sandboard-app.github.io`](https://github.com/sandboard-app/sandboard-app.github.io)
 via a write deploy key (`PAGES_DEPLOY_KEY`). The org's **Deploy keys** setting
 must stay enabled.

@@ -4,7 +4,7 @@ export type ThemePreference = "system" | "light" | "dark";
 /** Concrete theme applied to `document.documentElement.dataset.theme`. */
 export type ResolvedTheme = "light" | "dark";
 
-const STORAGE_KEY = "honr-theme";
+const STORAGE_KEY = "sandboard-theme";
 
 export function systemResolvedTheme(): ResolvedTheme {
   if (typeof window !== "undefined" && window.matchMedia("(prefers-color-scheme: dark)").matches) {

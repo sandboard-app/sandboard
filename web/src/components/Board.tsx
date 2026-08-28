@@ -129,7 +129,7 @@ export function Board(props: BoardProps) {
     return (
       <div className="board-page">
         <header className="board-hero">
-          <h1>Welcome to honr</h1>
+          <h1>Welcome to sandboard</h1>
           <p className="board-lede">
             Create a Project, set standing instructions if needed, approve its
             plan, then dispatch work. Configuration layers and setup steps are

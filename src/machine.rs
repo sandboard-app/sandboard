@@ -345,7 +345,7 @@ mod tests {
 
     #[test]
     fn cockpit_session_park_resume_are_strict() {
-        let mut s = CockpitSession::new(Some("honr-cockpit".into()), Some("conv-1".into()));
+        let mut s = CockpitSession::new(Some("sandboard-cockpit".into()), Some("conv-1".into()));
         assert!(check_cockpit_park(&s).is_ok());
         assert_eq!(check_cockpit_resume(&s), Err(CockpitSessionError::NotParked));
 

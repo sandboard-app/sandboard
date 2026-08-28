@@ -9,7 +9,7 @@ export function Help() {
   return (
     <div className="help-page" data-testid="help-page">
       <header className="board-hero">
-        <h1>Welcome to honr</h1>
+        <h1>Welcome to sandboard</h1>
         <p className="board-lede">
           Create a Project, set standing instructions if needed, approve its
           plan, then dispatch work. Configuration layers and setup steps are

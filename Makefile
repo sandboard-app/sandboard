@@ -1,4 +1,4 @@
-# honr — API (Rust) + UI (Vite/React)
+# sandboard — API (Rust) + UI (Vite/React)
 #
 #   make          build both (cargo binary + web/dist for :8080)
 #   make run      build both, then serve on :8080
@@ -23,8 +23,8 @@ help:
 	@echo "  make docs-serve     mdbook serve (http://localhost:3000)"
 	@echo "  make sandbox        Rebuild all sandbox-<engine> images via podman (CONTAINER_ENGINE=docker to override)"
 	@echo "  make sandbox-push   Build and push all sandbox-<engine> images to REGISTRY"
-	@echo "  make image          Build the honr board image ($(REGISTRY)/honr:latest)"
-	@echo "  make image-push     Build and push the honr board image"
+	@echo "  make image          Build the sandboard board image ($(REGISTRY)/sandboard:latest)"
+	@echo "  make image-push     Build and push the sandboard board image"
 	@echo "  make test           cargo nextest/test + web tests"
 	@echo "  make clippy         cargo clippy -D warnings"
 	@echo "  make clean          cargo clean + remove web/dist"
@@ -109,7 +109,7 @@ docs-serve:
 	mdbook serve
 
 # Rebuild when you need a newer engine CLI, OS package, or Rust toolchain
-# version — not when honr's own source changes, since no honr code or
+# version — not when sandboard's own source changes, since no sandboard code or
 # dependency cache is baked in (cards fetch crates.io/npm live). New sandboxes
 # pick this up via --from; existing ones keep the create-time image. One
 # image per agent engine (sandbox/Containerfile is multi-stage) — each
@@ -118,7 +118,7 @@ docs-serve:
 # Default engine is podman (OpenShell's usual host driver). Override with
 # CONTAINER_ENGINE=docker when needed.
 CONTAINER_ENGINE ?= podman
-REGISTRY ?= quay.io/honr-app
+REGISTRY ?= quay.io/sandboard-app
 ENGINES := cursor agy claude opencode
 
 sandbox:
@@ -136,10 +136,10 @@ sandbox-push: sandbox
 # Board image (API + web/dist) for in-cluster / container deploys.
 # Distinct from sandbox-* (agent sandboxes). See Containerfile.
 image:
-	$(CONTAINER_ENGINE) build -f Containerfile -t $(REGISTRY)/honr:latest .
+	$(CONTAINER_ENGINE) build -f Containerfile -t $(REGISTRY)/sandboard:latest .
 
 image-push: image
-	$(CONTAINER_ENGINE) push $(REGISTRY)/honr:latest
+	$(CONTAINER_ENGINE) push $(REGISTRY)/sandboard:latest
 
 clean:
 	cargo clean

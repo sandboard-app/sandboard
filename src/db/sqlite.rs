@@ -315,7 +315,7 @@ impl SqliteBoardStore {
         Ok(())
     }
 
-    /// When the DB has never been populated, import `honr.json` once and stamp meta.
+    /// When the DB has never been populated, import `sandboard.json` once and stamp meta.
     /// Returns `true` if an import ran. Leaves the JSON file untouched.
     pub async fn import_json_if_empty(&self, json_path: &Path) -> Result<bool, StoreError> {
         if !self.is_empty().await? {
@@ -1263,7 +1263,7 @@ mod tests {
         // Cockpit session meta round-trip.
         let mut with_cockpit = rt_again;
         with_cockpit.cockpit_session = Some(crate::model::CockpitSession::new(
-            Some("honr-cockpit".into()),
+            Some("sandboard-cockpit".into()),
             Some("conv-db".into()),
         ));
         with_cockpit.cockpit_session.as_mut().unwrap().status =
@@ -1276,7 +1276,7 @@ mod tests {
         let session = cockpit_again
             .cockpit_session
             .expect("cockpit_session round-trip");
-        assert_eq!(session.environment.as_deref(), Some("honr-cockpit"));
+        assert_eq!(session.environment.as_deref(), Some("sandboard-cockpit"));
         assert_eq!(session.conversation_id.as_deref(), Some("conv-db"));
         assert_eq!(session.status, crate::model::CockpitSessionStatus::Parked);
     }
@@ -1316,14 +1316,14 @@ mod tests {
     #[tokio::test]
     async fn one_shot_json_import_and_no_repeat() {
         let dir = std::env::temp_dir().join(format!(
-            "honr-import-{}",
+            "sandboard-import-{}",
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
                 .as_nanos()
         ));
         std::fs::create_dir_all(&dir).unwrap();
-        let json_path = dir.join("honr.json");
+        let json_path = dir.join("sandboard.json");
 
         let mut state = BoardState {
             next_id: 5,
@@ -1366,15 +1366,15 @@ mod tests {
     #[tokio::test]
     async fn board_survives_restart_via_db() {
         let dir = std::env::temp_dir().join(format!(
-            "honr-board-db-{}",
+            "sandboard-board-db-{}",
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
                 .as_nanos()
         ));
         std::fs::create_dir_all(&dir).unwrap();
-        let db_path = dir.join("honr.db");
-        let json_path = dir.join("honr.json");
+        let db_path = dir.join("sandboard.db");
+        let json_path = dir.join("sandboard.json");
         let url = format!("sqlite:{}", db_path.display());
 
         let store = Arc::new(
@@ -1420,7 +1420,7 @@ mod tests {
         let stories = board2.stories_for(project.id);
         assert!(stories.iter().any(|s| s.text == "noted"));
 
-        // Flush with a store attached must not create/rewrite honr.json.
+        // Flush with a store attached must not create/rewrite sandboard.json.
         assert!(!json_path.exists());
 
         let _ = std::fs::remove_dir_all(&dir);

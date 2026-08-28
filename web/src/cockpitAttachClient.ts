@@ -1,7 +1,7 @@
 import type { Terminal as XTerm } from "@xterm/xterm";
 import type { FitAddon as FitAddonType } from "@xterm/addon-fit";
 import { xtermThemeFromDocument } from "./theme.js";
-import { honrWsUrl } from "./wsUrl.js";
+import { sandboardWsUrl } from "./wsUrl.js";
 
 export type CockpitAttachHandle = {
   /** Tear down xterm + WebSocket. Safe to call more than once. */
@@ -55,7 +55,7 @@ export async function openCockpitAttach(
 
   let ws: WebSocket | null = null;
   try {
-    ws = new WebSocket(honrWsUrl("/api/cockpit-attach"));
+    ws = new WebSocket(sandboardWsUrl("/api/cockpit-attach"));
   } catch (e) {
     term.dispose();
     cbs.onError(e instanceof Error ? e.message : String(e));

@@ -10,9 +10,9 @@
 # (`https://microshift-operator.<tailnet>.ts.net`). Ship the kube-apiserver
 # CAs for any direct cluster TLS.
 #
-#   podman build -f sandbox/microshift/Containerfile -t quay.io/honr-app/sandbox-microshift:latest .
+#   podman build -f sandbox/microshift/Containerfile -t quay.io/sandboard-app/sandbox-microshift:latest .
 
-FROM quay.io/honr-app/sandbox-cursor:latest
+FROM quay.io/sandboard-app/sandbox-cursor:latest
 
 USER root
 

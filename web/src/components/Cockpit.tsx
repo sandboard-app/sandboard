@@ -148,7 +148,7 @@ export function cockpitChatGate(session: CockpitSession | null): {
   return { canSend: g.canAttach, reason: g.reason };
 }
 
-/** Exponential backoff for attach reconnect after honr/proxy drops the socket. */
+/** Exponential backoff for attach reconnect after sandboard/proxy drops the socket. */
 export function cockpitAttachRetryDelayMs(attempt: number): number {
   const n = Math.max(0, Math.min(attempt, 5));
   return Math.min(1000 * 2 ** n, 15_000);

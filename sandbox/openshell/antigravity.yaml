@@ -28,7 +28,7 @@ credentials:
           description: Google OAuth client id (Antigravity consumer installed-app client)
           required: true
         - name: client_secret
-          description: Google OAuth client secret (installed-app; not a honr secret)
+          description: Google OAuth client secret (installed-app; not a sandboard secret)
           required: true
           secret: true
         - name: refresh_token

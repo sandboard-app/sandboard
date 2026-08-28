@@ -139,7 +139,7 @@ export function OpenShellPanelView({
       <header className="openshell-hero">
         <h2 id="openshell-title">OpenShell</h2>
         <p className="dim openshell-hero-lead">
-          Connect honr to your OpenShell gateway, then configure providers,
+          Connect sandboard to your OpenShell gateway, then configure providers,
           policies, and sandbox specs. Each spec picks which providers, policy,
           and MCP servers a run gets.
         </p>

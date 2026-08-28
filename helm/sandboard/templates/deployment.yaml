@@ -1,22 +1,22 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "honr.fullname" . }}
+  name: {{ include "sandboard.fullname" . }}
   labels:
-    {{- include "honr.labels" . | nindent 4 }}
-    {{- include "honr.selectorLabels" . | nindent 4 }}
+    {{- include "sandboard.labels" . | nindent 4 }}
+    {{- include "sandboard.selectorLabels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
-      {{- include "honr.selectorLabels" . | nindent 6 }}
+      {{- include "sandboard.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       labels:
-        {{- include "honr.selectorLabels" . | nindent 8 }}
+        {{- include "sandboard.selectorLabels" . | nindent 8 }}
     spec:
       containers:
-        - name: honr
+        - name: sandboard
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
@@ -24,21 +24,21 @@ spec:
               containerPort: {{ .Values.service.port }}
               protocol: TCP
           env:
-            - name: HONR_BIND_ADDR
+            - name: SANDBOARD_BIND_ADDR
               value: "0.0.0.0"
-            - name: HONR_PORT
+            - name: SANDBOARD_PORT
               value: {{ .Values.service.port | quote }}
-            - name: HONR_PUBLIC_URL
+            - name: SANDBOARD_PUBLIC_URL
               value: {{ .Values.ingress.publicUrl | quote }}
-            - name: HONR_DATABASE_URL
+            - name: SANDBOARD_DATABASE_URL
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "honr.secretName" . }}
+                  name: {{ include "sandboard.secretName" . }}
                   key: database-url
-            - name: HONR_MASTER_KEY
+            - name: SANDBOARD_MASTER_KEY
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "honr.secretName" . }}
+                  name: {{ include "sandboard.secretName" . }}
                   key: master-key
           readinessProbe:
             httpGet:

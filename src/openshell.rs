@@ -149,12 +149,12 @@ pub struct Sandbox {
 }
 
 impl Sandbox {
-    /// The work item this sandbox belongs to, from the `honr.item` label.
+    /// The work item this sandbox belongs to, from the `sandboard.item` label.
     pub fn item_id(&self) -> Option<u64> {
         self.labels.get(LABEL_ITEM)?.parse().ok()
     }
 
-    /// Control-plane cockpit sandbox (`honr.cockpit=1`), not a card worker.
+    /// Control-plane cockpit sandbox (`sandboard.cockpit=1`), not a card worker.
     pub fn is_cockpit(&self) -> bool {
         self.labels
             .get(LABEL_COCKPIT)
@@ -166,9 +166,9 @@ impl Sandbox {
 #[derive(Debug, Clone)]
 pub struct SandboxSpec {
     pub name: String,
-    /// OCI image reference (`honr-sandbox:latest`). Same semantics as CLI `--from`.
+    /// OCI image reference (`sandboard-sandbox:latest`). Same semantics as CLI `--from`.
     pub from: String,
-    /// Provider names to attach (from honr desired providers with attach=true).
+    /// Provider names to attach (from sandboard desired providers with attach=true).
     pub providers: Vec<String>,
     /// Inline OpenShell policy YAML.
     pub policy: Option<String>,
@@ -280,9 +280,9 @@ impl Output {
     }
 }
 
-pub const LABEL_ITEM: &str = "honr.item";
+pub const LABEL_ITEM: &str = "sandboard.item";
 /// Marks the durable control-plane cockpit sandbox (not a card worker).
-pub const LABEL_COCKPIT: &str = "honr.cockpit";
+pub const LABEL_COCKPIT: &str = "sandboard.cockpit";
 
 #[cfg(test)]
 type MockHandler = std::sync::Arc<dyn Fn(&[String]) -> Output + Send + Sync>;
@@ -661,12 +661,12 @@ impl OpenShell {
         .await
     }
 
-    /// Sandboxes this honr created, keyed by work item.
+    /// Sandboxes this sandboard created, keyed by work item.
     pub async fn list_ours(&self) -> Result<Vec<Sandbox>> {
         Ok(self.list().await?.into_iter().filter(|s| s.item_id().is_some()).collect())
     }
 
-    /// Cockpit sandboxes (`honr.cockpit`), distinct from card `list_ours`.
+    /// Cockpit sandboxes (`sandboard.cockpit`), distinct from card `list_ours`.
     pub async fn list_cockpit(&self) -> Result<Vec<Sandbox>> {
         Ok(self.list().await?.into_iter().filter(|s| s.is_cockpit()).collect())
     }
@@ -2386,7 +2386,7 @@ fn split_sandbox_path(path: &str) -> (&str, &str) {
 
 fn upload_dest_parts(local: &Path, dest: &str) -> Result<(String, String)> {
     // Dest is always a directory (OpenShell CLI / docs). Treating paths like
-    // `/sandbox/.honr` as a *file* named `.honr` wrote report.schema.json on
+    // `/sandbox/.sandboard` as a *file* named `.sandboard` wrote report.schema.json on
     // top of the verdict dir and broke escalate/report.
     let tar_name = local
         .file_name()
@@ -2578,14 +2578,14 @@ mod tests {
                 message: "transport error: h2 reset".into(),
             },
             Some("https://gateway.example.com"),
-            "honr-card-59-a1",
+            "sandboard-card-59-a1",
             Some("sb-object-1"),
             Some("req-abc"),
             Duration::from_millis(1234),
         );
         let msg = err.to_string();
         assert!(msg.contains("https://gateway.example.com"), "{msg}");
-        assert!(msg.contains("honr-card-59-a1"), "{msg}");
+        assert!(msg.contains("sandboard-card-59-a1"), "{msg}");
         assert!(msg.contains("sb-object-1"), "{msg}");
         assert!(msg.contains("elapsed_ms=1234"), "{msg}");
         assert!(msg.contains("request_id=req-abc"), "{msg}");
@@ -2604,8 +2604,8 @@ mod tests {
 
     fn spec() -> SandboxSpec {
         SandboxSpec {
-            name: "honr-card-7".into(),
-            from: "honr-sandbox:latest".into(),
+            name: "sandboard-card-7".into(),
+            from: "sandboard-sandbox:latest".into(),
             providers: vec!["vertex".into(), "gh-clankr".into()],
             policy: Some("version: 1\nfilesystem_policy:\n  include_workdir: true\n".into()),
             env: vec![("DISABLE_TELEMETRY".into(), "1".into())],
@@ -2708,20 +2708,20 @@ mod tests {
     #[test]
     fn image_is_passed_as_from() {
         let args = mock_create_args(&spec());
-        assert!(args.windows(2).any(|w| w[0] == "--from" && w[1] == "honr-sandbox:latest"));
+        assert!(args.windows(2).any(|w| w[0] == "--from" && w[1] == "sandboard-sandbox:latest"));
         assert!(!args.iter().any(|a| a == "--image"));
     }
 
     #[test]
     fn create_request_sets_image_providers_labels_and_policy() {
         let req = build_create_request(&spec()).expect("policy parses");
-        assert_eq!(req.name, "honr-card-7");
-        assert_eq!(req.labels.get("honr.item").map(String::as_str), Some("7"));
+        assert_eq!(req.name, "sandboard-card-7");
+        assert_eq!(req.labels.get("sandboard.item").map(String::as_str), Some("7"));
         let sandbox_spec = req.spec.expect("spec");
         assert_eq!(sandbox_spec.providers, vec!["vertex", "gh-clankr"]);
         assert_eq!(
             sandbox_spec.template.as_ref().map(|t| t.image.as_str()),
-            Some("honr-sandbox:latest")
+            Some("sandboard-sandbox:latest")
         );
         assert!(sandbox_spec.policy.is_some());
         assert_eq!(
@@ -2769,13 +2769,13 @@ mod tests {
 
     #[test]
     fn upload_dest_is_always_a_directory() {
-        // Regression: `/sandbox/.honr` used to be treated as a file named `.honr`.
+        // Regression: `/sandbox/.sandboard` used to be treated as a file named `.sandboard`.
         let (dir, name) = upload_dest_parts(
             Path::new("docs/schemas/report.schema.json"),
-            "/sandbox/.honr",
+            "/sandbox/.sandboard",
         )
         .expect("parts");
-        assert_eq!(dir, "/sandbox/.honr");
+        assert_eq!(dir, "/sandbox/.sandboard");
         assert_eq!(name, "report.schema.json");
         let (dir2, name2) =
             upload_dest_parts(Path::new("sandbox/Containerfile"), "/tmp").expect("containerfile");
@@ -2789,7 +2789,7 @@ mod tests {
             |args| {
                 assert_eq!(args[0], "sandbox");
                 assert_eq!(args[1], "exec-interactive");
-                assert!(args.windows(2).any(|w| w[0] == "-n" && w[1] == "honr-cockpit"));
+                assert!(args.windows(2).any(|w| w[0] == "-n" && w[1] == "sandboard-cockpit"));
                 Output {
                     code: 0,
                     stdout: "ready\n".into(),
@@ -2800,7 +2800,7 @@ mod tests {
         );
         let mut session = os
             .exec_interactive(
-                "honr-cockpit",
+                "sandboard-cockpit",
                 vec!["bash".into(), "-l".into()],
                 80,
                 24,
@@ -2820,20 +2820,20 @@ mod tests {
     // ---- gateway-backed. `cargo test -- --ignored` against a real gateway.
     //
     // PEM paths come from the environment rather than a guessed location under
-    // $HOME: honr does not read host config, and neither should its tests.
+    // $HOME: sandboard does not read host config, and neither should its tests.
     #[tokio::test]
-    #[ignore = "needs a running OpenShell gateway and HONR_TEST_MTLS_* pointing at PEMs"]
+    #[ignore = "needs a running OpenShell gateway and SANDBOARD_TEST_MTLS_* pointing at PEMs"]
     async fn real_gateway_health_and_list() {
-        let endpoint = std::env::var("HONR_OPENSHELL_ENDPOINT")
+        let endpoint = std::env::var("SANDBOARD_OPENSHELL_ENDPOINT")
             .unwrap_or_else(|_| "https://127.0.0.1:17670".into());
         let read = |var: &str| {
             let path = std::env::var(var).unwrap_or_else(|_| panic!("set {var} to a PEM path"));
             std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {path}: {e}"))
         };
         let bundle = crate::secrets::OpenShellMtlsBundle {
-            ca_pem: read("HONR_TEST_MTLS_CA"),
-            client_cert_pem: read("HONR_TEST_MTLS_CERT"),
-            client_key_pem: read("HONR_TEST_MTLS_KEY"),
+            ca_pem: read("SANDBOARD_TEST_MTLS_CA"),
+            client_cert_pem: read("SANDBOARD_TEST_MTLS_CERT"),
+            client_key_pem: read("SANDBOARD_TEST_MTLS_KEY"),
         };
         let os = OpenShell::new(
             Some(endpoint),
@@ -2845,24 +2845,24 @@ mod tests {
     }
 
     /// Live OIDC probe. Tokens come from env JSON (never from `~/.config/openshell`
-    /// inside honr itself — paste after `openshell gateway login` if needed):
-    /// `HONR_TEST_OIDC_TOKEN_JSON={"access_token":…,"refresh_token":…,"expires_at":…,"issuer":…,"client_id":…}`
+    /// inside sandboard itself — paste after `openshell gateway login` if needed):
+    /// `SANDBOARD_TEST_OIDC_TOKEN_JSON={"access_token":…,"refresh_token":…,"expires_at":…,"issuer":…,"client_id":…}`
     #[tokio::test]
-    #[ignore = "needs HTTPS OIDC gateway + HONR_TEST_OIDC_TOKEN_JSON"]
+    #[ignore = "needs HTTPS OIDC gateway + SANDBOARD_TEST_OIDC_TOKEN_JSON"]
     async fn real_gateway_oidc_health_and_list() {
-        let endpoint = std::env::var("HONR_OPENSHELL_ENDPOINT")
-            .expect("set HONR_OPENSHELL_ENDPOINT to the gateway base URL");
-        let issuer = std::env::var("HONR_TEST_OIDC_ISSUER").expect(
-            "set HONR_TEST_OIDC_ISSUER (e.g. https://<keycloak>/realms/openshell)",
+        let endpoint = std::env::var("SANDBOARD_OPENSHELL_ENDPOINT")
+            .expect("set SANDBOARD_OPENSHELL_ENDPOINT to the gateway base URL");
+        let issuer = std::env::var("SANDBOARD_TEST_OIDC_ISSUER").expect(
+            "set SANDBOARD_TEST_OIDC_ISSUER (e.g. https://<keycloak>/realms/openshell)",
         );
         let client_id =
-            std::env::var("HONR_TEST_OIDC_CLIENT_ID").unwrap_or_else(|_| "openshell-cli".into());
+            std::env::var("SANDBOARD_TEST_OIDC_CLIENT_ID").unwrap_or_else(|_| "openshell-cli".into());
         let audience =
-            std::env::var("HONR_TEST_OIDC_AUDIENCE").unwrap_or_else(|_| client_id.clone());
-        let raw = std::env::var("HONR_TEST_OIDC_TOKEN_JSON")
-            .expect("set HONR_TEST_OIDC_TOKEN_JSON to an OIDC token bundle JSON object");
+            std::env::var("SANDBOARD_TEST_OIDC_AUDIENCE").unwrap_or_else(|_| client_id.clone());
+        let raw = std::env::var("SANDBOARD_TEST_OIDC_TOKEN_JSON")
+            .expect("set SANDBOARD_TEST_OIDC_TOKEN_JSON to an OIDC token bundle JSON object");
         let bundle: crate::secrets::OpenShellOidcBundle =
-            serde_json::from_str(&raw).expect("parse HONR_TEST_OIDC_TOKEN_JSON");
+            serde_json::from_str(&raw).expect("parse SANDBOARD_TEST_OIDC_TOKEN_JSON");
         let os = OpenShell::new(
             Some(endpoint),
             Some(GatewayAuth::oidc(
@@ -2907,7 +2907,7 @@ mod download_tar_tests {
         let payload = b"{\"summary\":\"ok\",\"tasks\":[]}\n";
         let tar = sample_ustar(payload);
         let dir = std::env::temp_dir().join(format!(
-            "honr-download-tar-ok-{}",
+            "sandboard-download-tar-ok-{}",
             std::process::id()
         ));
         let _ = std::fs::remove_dir_all(&dir);
@@ -2931,7 +2931,7 @@ mod download_tar_tests {
         let lossy = String::from_utf8_lossy(&tar).into_owned().into_bytes();
         assert_ne!(tar, lossy, "lossy UTF-8 must change the byte stream");
         let dir = std::env::temp_dir().join(format!(
-            "honr-download-tar-bad-{}",
+            "sandboard-download-tar-bad-{}",
             std::process::id()
         ));
         let _ = std::fs::remove_dir_all(&dir);
@@ -2958,12 +2958,12 @@ mod cockpit_policy_create_tests {
     fn build_create_request_accepts_minimal_policy() {
         let yaml = crate::seed_policies::MINIMAL_SANDBOX_POLICY.to_string();
         let spec = SandboxSpec {
-            name: "honr-policy-test".into(),
-            from: "honr-sandbox:latest".into(),
+            name: "sandboard-policy-test".into(),
+            from: "sandboard-sandbox:latest".into(),
             providers: vec![],
             policy: Some(yaml),
             env: vec![],
-            labels: vec![("honr.cockpit".into(), "1".into())],
+            labels: vec![("sandboard.cockpit".into(), "1".into())],
             cpu: Some("1".into()),
             memory: Some("2Gi".into()),
         };

@@ -1,9 +1,9 @@
 # OpenShell provider type for GitHub App–minted installation tokens.
-# Honr mints GH_TOKEN (App JWT → installation access token) and syncs only
+# Sandboard mints GH_TOKEN (App JWT → installation access token) and syncs only
 # that credential to the gateway — never the App private key.
 id: github-app
 display_name: GitHub Application Access Token
-description: GitHub App installation token as GH_TOKEN (minted by honr)
+description: GitHub App installation token as GH_TOKEN (minted by sandboard)
 category: agent
 credentials:
   - name: gh_token

@@ -3,8 +3,8 @@
 # Does not store lifecycle: environment and conversation live on the Board.
 set -euo pipefail
 
-USER="${HONR_USER:-}"
-PASS="${HONR_PASSWORD:-}"
+USER="${SANDBOARD_USER:-}"
+PASS="${SANDBOARD_PASSWORD:-}"
 
 usage() {
   cat <<'EOF'
@@ -14,14 +14,14 @@ Board owns cockpit-session lifecycle. This script only calls REST (HTTP
 Basic auth, no session state on disk) and `openshell sandbox connect`.
 
 Env:
-  HONR_URL          board origin (required) — same Host as the browser
-  HONR_USER         admin username (prompted if unset)
-  HONR_PASSWORD     admin password (prompted if unset)
+  SANDBOARD_URL          board origin (required) — same Host as the browser
+  SANDBOARD_USER         admin username (prompted if unset)
+  SANDBOARD_PASSWORD     admin password (prompted if unset)
 EOF
 }
 
-: "${HONR_URL:?Set HONR_URL to your board origin (the URL in the browser)}"
-HONR_URL="${HONR_URL%/}"
+: "${SANDBOARD_URL:?Set SANDBOARD_URL to your board origin (the URL in the browser)}"
+SANDBOARD_URL="${SANDBOARD_URL%/}"
 
 need_jq() {
   command -v jq >/dev/null || {
@@ -32,10 +32,10 @@ need_jq() {
 
 ensure_creds() {
   if [[ -z "$USER" ]]; then
-    read -r -p "honr username: " USER
+    read -r -p "sandboard username: " USER
   fi
   if [[ -z "$PASS" ]]; then
-    read -r -s -p "honr password: " PASS
+    read -r -s -p "sandboard password: " PASS
     echo >&2
   fi
 }
@@ -48,7 +48,7 @@ api() {
     -X "$method" \
     -H 'Content-Type: application/json' \
     "$@" \
-    "${HONR_URL}${path}"
+    "${SANDBOARD_URL}${path}"
 }
 
 session_json() {

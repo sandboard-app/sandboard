@@ -1,12 +1,12 @@
-# honr agent sandbox = a minimal Red Hat UBI9 base + a Rust toolchain, split
-# into one build target per agent engine. No honr source or dependency cache
+# sandboard agent sandbox = a minimal Red Hat UBI9 base + a Rust toolchain, split
+# into one build target per agent engine. No sandboard source or dependency cache
 # is baked in — cards fetch crates.io/npm live and build against their own
-# checkout, same as any other repo honr might dispatch work against.
+# checkout, same as any other repo sandboard might dispatch work against.
 #
 # Why our own base instead of the OpenShell community image: that image bakes
 # in every supported agent CLI (Claude, OpenCode via a bug-bloated npm package
 # with 4 redundant platform binaries, Copilot, Codex) plus a Python/uv/
-# cloudpickle "skills" venv honr never touches, regardless of which
+# cloudpickle "skills" venv sandboard never touches, regardless of which
 # engine-specific target you build — about 1.2GB of dead weight per image on
 # top of another ~950MB of Ubuntu convenience tooling (vim, nano, traceroute,
 # ping, openssh-sftp-server) this project doesn't use. OpenShell's own
@@ -14,7 +14,7 @@
 # network namespace management) and nftables (optional, bypass detection) —
 # see examples/bring-your-own-container/Dockerfile in the OpenShell source.
 # Everything below that line is ours to choose. Bare `ubi9/ubi` plus exactly
-# what honr needs measures ~760MB versus the old base's 3.42GB.
+# what sandboard needs measures ~760MB versus the old base's 3.42GB.
 #
 # Why one image per engine: each sandbox only carries the CLI it will
 # actually run — no agy/opencode binaries sitting unused (and unaudited) in
@@ -26,15 +26,15 @@
 # Why the toolchain is baked in but the dependency cache is not: reinstalling
 # rustup (and its components) fresh on every card would cost real wall-clock
 # and inference spend for zero benefit — nobody ever wants a different
-# toolchain build per run. A honr source snapshot and its compiled dependency
+# toolchain build per run. A sandboard source snapshot and its compiled dependency
 # tree are the opposite: they go stale the moment a PR merges, so baking them
 # into a multi-GB image just means rebuilding and re-pushing that image on
 # every merge to keep pace. Cards build against crates.io/npm directly instead
 # — see the network policy note at the bottom.
 #
-# `make sandbox` builds all four `quay.io/honr-app/sandbox-<engine>:latest`;
+# `make sandbox` builds all four `quay.io/sandboard-app/sandbox-<engine>:latest`;
 # `make sandbox-push` also pushes them. Or directly:
-#   podman build -f sandbox/Containerfile --target cursor -t quay.io/honr-app/sandbox-cursor:latest .
+#   podman build -f sandbox/Containerfile --target cursor -t quay.io/sandboard-app/sandbox-cursor:latest .
 #
 # Then pair it with the worker board-profile policy companion entries — see the
 # note at the bottom (and src/seed_policies.rs for the per-engine cockpit seed).
@@ -65,7 +65,7 @@ RUN groupadd -r supervisor \
 
 # OS-level tools. `iproute` (network namespace management) and `nftables`
 # (bypass detection) are OpenShell's own documented minimum for a custom
-# sandbox image. `git`/`nodejs`/`npm`/`gh` are honr's own build and agent
+# sandbox image. `git`/`nodejs`/`npm`/`gh` are sandboard's own build and agent
 # requirements — `curl`/`ca-certificates` ship on `ubi9/ubi` by default.
 # `gcc`/`gcc-c++`/`make` exist so a card's own `cargo build` can compile: the
 # `ring` crate (via rustls/tonic's `tls-ring` feature) and sqlx's `sqlite`
@@ -90,7 +90,7 @@ ARG RUST_VERSION=1.97.1
 # under /sandbox — the same reasoning, not a pre-warmed cache (there is none).
 # HOME=/sandbox matches the sandbox user's passwd home. OpenShell's supervisor
 # often starts as root (HOME=/root); agents that inherit that miss
-# /sandbox/.cursor/mcp.json. honr also passes HOME explicitly in agent_env.
+# /sandbox/.cursor/mcp.json. sandboard also passes HOME explicitly in agent_env.
 ENV RUSTUP_HOME=/opt/rust \
     CARGO_HOME=/opt/cargo \
     CARGO_TARGET_DIR=/opt/cargo-target \

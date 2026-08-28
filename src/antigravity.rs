@@ -4,9 +4,9 @@
 //! access token; the sandbox only gets an `openshell:resolve:…` placeholder
 //! via provider type `antigravity` (Bearer on Cloud Code endpoints).
 //!
-//! The token arrives over the API like every other credential. honr does not
+//! The token arrives over the API like every other credential. sandboard does not
 //! read the host keychain: reaching into a developer's credential store is a
-//! guess about the machine honr happens to be running on, and it silently
+//! guess about the machine sandboard happens to be running on, and it silently
 //! adopted tokens that were put there for something else entirely.
 //!
 //! Profile YAML lives in the board provider-type catalog
@@ -121,7 +121,7 @@ mod tests {
         use crate::store::Board;
         use std::sync::Arc;
         let path = std::env::temp_dir().join(format!(
-            "honr-agy-gcp-board-{}.json",
+            "sandboard-agy-gcp-board-{}.json",
             std::process::id()
         ));
         let _ = std::fs::remove_file(&path);

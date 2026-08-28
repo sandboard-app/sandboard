@@ -193,13 +193,13 @@ function AuthedApp({
             data-testid="brand-mark"
           >
             <img
-              src="/honr-logo.png"
+              src="/sandboard-logo.png"
               alt=""
               className="brand-mark"
               width={44}
               height={44}
             />
-            <span className="brand-word">honr</span>
+            <span className="brand-word">sandboard</span>
           </button>
           {totalNeedsYou > 0 && <span className="pip">{totalNeedsYou}</span>}
         </div>
@@ -233,7 +233,7 @@ function AuthedApp({
       {staleFor !== null && (
         <div className="err banner">
           ⚠ NOT LIVE — showing state from {Math.round(staleFor / 1000)}s ago.
-          honr is unreachable; nothing here is current.
+          sandboard is unreachable; nothing here is current.
           <button className="link" onClick={b.refresh}>
             retry now
           </button>

@@ -11,7 +11,7 @@ pub const MINIMAL_POLICY_ID: &str = "minimal";
 /// Display name for [`MINIMAL_POLICY_ID`].
 pub const MINIMAL_POLICY_NAME: &str = "Minimal";
 
-/// Bare-bones policy for a new sandbox spec. No honr MCP, no package registries,
+/// Bare-bones policy for a new sandbox spec. No sandboard MCP, no package registries,
 /// no language-toolchain paths — operators add egress as needed.
 pub const MINIMAL_SANDBOX_POLICY: &str = r#"# Minimal OpenShell sandbox policy.
 # Edit under Settings → OpenShell → Policies for your egress needs.
@@ -41,7 +41,7 @@ pub const COCKPIT_CLAUDE_POLICY_NAME: &str = "Cockpit (claude)";
 pub const COCKPIT_OPENCODE_POLICY_NAME: &str = "Cockpit (opencode)";
 
 /// Minimal Cockpit policy for `sandbox-cursor`: card-work toolchain + GitHub
-/// egress (git/gh) + Cursor's own API. Host honr MCP is stdio over a local
+/// egress (git/gh) + Cursor's own API. Host sandboard MCP is stdio over a local
 /// Unix socket (`socat`, see `cockpit_mcp_tunnel`) — no network hop, so no
 /// entry for it. Cursor does not go through OpenShell `inference.local`, so
 /// no separate inference block.
@@ -82,7 +82,7 @@ network_policies:
       - { path: /opt/cursor-agent/versions/**/node }
       - { path: /usr/bin/node }
       - { path: /usr/local/bin/node }
-      # Cockpit honr MCP stdio relay client (mcp.json → agent.sock).
+      # Cockpit sandboard MCP stdio relay client (mcp.json → agent.sock).
       - { path: /usr/bin/socat }
 
   cargo_npm:

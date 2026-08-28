@@ -7,14 +7,14 @@
 //! connection. `ExecSandboxInteractive` (what cockpit's browser terminal
 //! already uses) skips that entirely:
 //!
-//! 1. honr spawns `socat UNIX-LISTEN:<AGENT_SOCK_PATH> STDIO` inside the
+//! 1. sandboard spawns `socat UNIX-LISTEN:<AGENT_SOCK_PATH> STDIO` inside the
 //!    sandbox via a raw (non-pty) interactive exec — its stdin/stdout are
 //!    the gRPC-piped ends of that call, right here in this process.
 //! 2. The agent's MCP client is configured for stdio transport:
 //!    `socat - UNIX-CONNECT:<AGENT_SOCK_PATH>`. When that client
 //!    disconnects, the one-shot listen `socat` exits, which is how the
 //!    board sees session end and re-spawns for the next connect.
-//! 3. Those piped bytes ARE the MCP JSON-RPC wire: honr wraps them as an
+//! 3. Those piped bytes ARE the MCP JSON-RPC wire: sandboard wraps them as an
 //!    `AsyncRead`/`AsyncWrite` pair and calls `rmcp::serve_server` with the
 //!    same `Operator` handler the HTTP `/mcp` endpoint uses.
 //!
@@ -43,11 +43,11 @@ use tokio::task::JoinHandle;
 /// Unix domain socket the sandbox-side `socat` relay binds. Agent MCP
 /// clients connect to it with `socat - UNIX-CONNECT:<AGENT_SOCK_PATH>`
 /// (stdio transport).
-pub const AGENT_SOCK_PATH: &str = "/sandbox/.honr/mcp/agent.sock";
+pub const AGENT_SOCK_PATH: &str = "/sandbox/.sandboard/mcp/agent.sock";
 
 /// Informational label for the (now vestigial) cockpit JWT `aud` / UI
 /// display — nothing sends this over a wire; stdio has no headers.
-pub const MCP_TRANSPORT_LABEL: &str = "stdio:socat - UNIX-CONNECT:/sandbox/.honr/mcp/agent.sock";
+pub const MCP_TRANSPORT_LABEL: &str = "stdio:socat - UNIX-CONNECT:/sandbox/.sandboard/mcp/agent.sock";
 
 struct TunnelState {
     sandbox: String,

@@ -712,7 +712,7 @@ export function RepoAccessPanelView({
       <h2 id="repo-access-title">Repo access</h2>
       <p className="dim">
         Repositories each GitHub App installation can see. When an agent needs
-        to push or calls <code>report_pull_request</code>, honr looks up{" "}
+        to push or calls <code>report_pull_request</code>, sandboard looks up{" "}
         <code>owner/name</code> here and mints <code>GH_TOKEN</code> for that
         installation onto the live sandbox.{" "}
         <code>GITHUB_INSTALLATION_ID</code> remains the fallback for the{" "}
@@ -892,7 +892,7 @@ export function AgentRuntimePanelView({
       <p className="dim">
         Concurrency, timeouts, sweep interval, the board standing prompt, and the
         fallback engine when a sandbox spec does not set one. Per-run engine is on
-        OpenShell → Sandbox specs. Card branches are fixed <code>honr/card-*</code>.
+        OpenShell → Sandbox specs. Card branches are fixed <code>sandboard/card-*</code>.
       </p>
 
       {error && <div className="err">{error}</div>}

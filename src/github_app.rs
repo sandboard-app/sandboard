@@ -1,6 +1,6 @@
 //! GitHub App JWT + installation access tokens for sandbox `GH_TOKEN`.
 //!
-//! OpenShell has no App-native refresh strategy, so honr mints short-lived
+//! OpenShell has no App-native refresh strategy, so sandboard mints short-lived
 //! installation tokens and upserts them into the gateway provider instance
 //! [`PROVIDER_NAME`] (`github-app`, shipped type [`PROVIDER_TYPE`]).
 //! Only `GH_TOKEN` is pushed to the gateway — never the App private key.
@@ -187,7 +187,7 @@ pub fn make_app_jwt(bundle: &GitHubAppBundle, now: DateTime<Utc>) -> Result<Stri
 }
 
 fn api_base() -> String {
-    std::env::var("HONR_GITHUB_API")
+    std::env::var("SANDBOARD_GITHUB_API")
         .ok()
         .map(|s| s.trim().trim_end_matches('/').to_string())
         .filter(|s| !s.is_empty())
@@ -196,7 +196,7 @@ fn api_base() -> String {
 
 fn client() -> Result<reqwest::Client, Error> {
     reqwest::Client::builder()
-        .user_agent("honr")
+        .user_agent("sandboard")
         .build()
         .map_err(|e| Error::Api(e.to_string()))
 }
@@ -884,7 +884,7 @@ pub async fn host_installation_token(board: &SharedBoard) -> Result<Option<Strin
     Ok(Some(minted.token))
 }
 
-/// GitHub API base (override with `HONR_GITHUB_API` in tests).
+/// GitHub API base (override with `SANDBOARD_GITHUB_API` in tests).
 pub fn github_api_base() -> String {
     api_base()
 }
@@ -1294,7 +1294,7 @@ mod tests {
         include_str!("testdata/github_app_test_rsa.pem").to_string()
     }
 
-    /// Serialize `HONR_GITHUB_API` mutations across tests.
+    /// Serialize `SANDBOARD_GITHUB_API` mutations across tests.
     mod github_api_env {
         use super::*;
         static LOCK: Mutex<()> = Mutex::new(());
@@ -1307,8 +1307,8 @@ mod tests {
         impl Guard {
             pub(crate) fn set(base: &str) -> Self {
                 let _lock = LOCK.lock().unwrap_or_else(|p| p.into_inner());
-                let prev = std::env::var("HONR_GITHUB_API").ok();
-                std::env::set_var("HONR_GITHUB_API", base);
+                let prev = std::env::var("SANDBOARD_GITHUB_API").ok();
+                std::env::set_var("SANDBOARD_GITHUB_API", base);
                 Self { _lock, prev }
             }
         }
@@ -1316,8 +1316,8 @@ mod tests {
         impl Drop for Guard {
             fn drop(&mut self) {
                 match &self.prev {
-                    Some(v) => std::env::set_var("HONR_GITHUB_API", v),
-                    None => std::env::remove_var("HONR_GITHUB_API"),
+                    Some(v) => std::env::set_var("SANDBOARD_GITHUB_API", v),
+                    None => std::env::remove_var("SANDBOARD_GITHUB_API"),
                 }
             }
         }
@@ -1325,7 +1325,7 @@ mod tests {
 
     fn test_board(label: &str) -> (std::path::PathBuf, SharedBoard, crate::secrets::master_key_env::Guard) {
         let dir = std::env::temp_dir().join(format!(
-            "honr-test-ghapp-{label}-{}",
+            "sandboard-test-ghapp-{label}-{}",
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
@@ -1525,7 +1525,7 @@ mod tests {
     #[tokio::test]
     async fn ensure_mints_and_upserts_via_mock_github_and_openshell() {
         let dir = std::env::temp_dir().join(format!(
-            "honr-test-ghapp-mint-{}",
+            "sandboard-test-ghapp-mint-{}",
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
@@ -1698,7 +1698,7 @@ mod tests {
                         .unwrap_or("");
                     let repositories = if auth.contains("ghs_inst_99") {
                         serde_json::json!([{
-                            "full_name": "clankrshq/honr",
+                            "full_name": "clankrshq/sandboard",
                             "permissions": { "admin": true, "push": true, "pull": true }
                         }])
                     } else if auth.contains("ghs_inst_100") {
@@ -1734,10 +1734,10 @@ mod tests {
         let cache = refresh_repo_access_cache(&board).await.expect("refresh");
         assert_eq!(cache.installations.len(), 2);
         assert_eq!(cache.repos.len(), 2);
-        assert_eq!(cache.installation_id_for("clankrshq/honr"), Some(99));
+        assert_eq!(cache.installation_id_for("clankrshq/sandboard"), Some(99));
         assert_eq!(cache.installation_id_for("shanemcd/notes"), Some(100));
-        let honr = cache.repos.get("clankrshq/honr").expect("honr");
-        assert_eq!(honr.permissions.get("admin").map(String::as_str), Some("true"));
+        let sandboard = cache.repos.get("clankrshq/sandboard").expect("sandboard");
+        assert_eq!(sandboard.permissions.get("admin").map(String::as_str), Some("true"));
         assert!(cache.last_error.is_none());
         assert!(cache.refreshed_at.is_some());
 
@@ -1869,7 +1869,7 @@ mod tests {
     fn running_card(board: &SharedBoard, intent: &str) -> crate::model::WorkItem {
         use crate::model::{Origin, State};
         let p = board
-            .create_project("Route proj", "p", "honr-app/honr", true, None)
+            .create_project("Route proj", "p", "sandboard-app/sandboard", true, None)
             .expect("project");
         let t = board
             .create(
@@ -1979,9 +1979,9 @@ mod tests {
             &board,
             "Clone repository: missing-org/missing into /sandbox/repo",
         );
-        board.set_environment(item.id, Some("honr-card-uncovered".into()));
+        board.set_environment(item.id, Some("sandboard-card-uncovered".into()));
         let _api = github_api_env::Guard::set("http://127.0.0.1:1");
-        let outcome = ensure_push_token(&board, item.id, "agent-1", Some("honr-card-uncovered"), None)
+        let outcome = ensure_push_token(&board, item.id, "agent-1", Some("sandboard-card-uncovered"), None)
             .await
             .expect("ensure");
         assert_eq!(outcome, EnsurePushToken::Parked);
@@ -1998,7 +1998,7 @@ mod tests {
     async fn covered_repo_mints_routed_token_not_singleton_installation() {
         use std::sync::{Arc, Mutex};
         let dir = std::env::temp_dir().join(format!(
-            "honr-test-ghapp-route-{}",
+            "sandboard-test-ghapp-route-{}",
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
@@ -2042,13 +2042,13 @@ mod tests {
             &board,
             "Clone repository: acme/other into /sandbox/repo",
         );
-        board.set_environment(item.id, Some("honr-card-route".into()));
+        board.set_environment(item.id, Some("sandboard-card-route".into()));
 
         let outcome = ensure_push_token(
             &board,
             item.id,
             "agent-1",
-            Some("honr-card-route"),
+            Some("sandboard-card-route"),
             Some("acme/other"),
         )
         .await
@@ -2082,7 +2082,7 @@ mod tests {
                     && a.get(1).map(String::as_str) == Some("provider")
                     && a.get(2).map(String::as_str) == Some("attach")
                     && a.iter().any(|s| s == "github-app-install-100")
-                    && a.iter().any(|s| s == "honr-card-route")
+                    && a.iter().any(|s| s == "sandboard-card-route")
             }),
             "must attach routed GH_TOKEN to live sandbox: {calls:?}"
         );
@@ -2096,15 +2096,15 @@ mod tests {
         let (dir, board, _env) = test_board("same-install");
         seal_test_app(&board);
         board.set_github_app_installation_id(Some(99));
-        board.set_github_repo_access_cache(cache_repo("honr-app/honr", 99));
+        board.set_github_repo_access_cache(cache_repo("sandboard-app/sandboard", 99));
         let _api = github_api_env::Guard::set("http://127.0.0.1:1");
-        let outcome = sync_sandbox_token_for_repo(&board, Some("box"), "honr-app/honr")
+        let outcome = sync_sandbox_token_for_repo(&board, Some("box"), "sandboard-app/sandboard")
             .await
             .expect("sync");
         assert_eq!(
             outcome,
             RepoTokenOutcome::Ready {
-                owner_repo: "honr-app/honr".into(),
+                owner_repo: "sandboard-app/sandboard".into(),
                 installation_id: 99,
                 provider_name: PROVIDER_NAME.into(),
                 routed: false,

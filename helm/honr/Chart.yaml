@@ -1,6 +1,0 @@
-apiVersion: v2
-name: honr
-description: honr board — agent orchestrator (API + UI) with Postgres
-type: application
-version: 0.1.0
-appVersion: "0.1.0"

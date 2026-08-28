@@ -9,20 +9,20 @@ use std::fmt;
 /// How a parked conversation/session id is passed on the CLI.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ResumeFlag {
-    /// `agy … --conversation "$HONR_CONVERSATION" …`
+    /// `agy … --conversation "$SANDBOARD_CONVERSATION" …`
     Conversation,
-    /// Cursor Agent CLI: `agent … --resume "$HONR_CONVERSATION" …`
+    /// Cursor Agent CLI: `agent … --resume "$SANDBOARD_CONVERSATION" …`
     Resume,
-    /// OpenCode CLI: `opencode run … --session "$HONR_CONVERSATION" …`
+    /// OpenCode CLI: `opencode run … --session "$SANDBOARD_CONVERSATION" …`
     Session,
 }
 
 impl ResumeFlag {
     fn argv(self) -> &'static str {
         match self {
-            Self::Conversation => "--conversation \"$HONR_CONVERSATION\"",
-            Self::Resume => "--resume \"$HONR_CONVERSATION\"",
-            Self::Session => "--session \"$HONR_CONVERSATION\"",
+            Self::Conversation => "--conversation \"$SANDBOARD_CONVERSATION\"",
+            Self::Resume => "--resume \"$SANDBOARD_CONVERSATION\"",
+            Self::Session => "--session \"$SANDBOARD_CONVERSATION\"",
         }
     }
 }
@@ -80,7 +80,7 @@ pub const ENGINES: &[Engine] = &[
         // --approve-mcps: Cursor 2026.08+ leaves project mcp.json servers as
         // "needs approval" / unloaded unless this flag (or `agent mcp enable`)
         // runs. Cockpit attach already passes it; print/headless must too or
-        // GetMcpTools returns "MCP server honr not found" while the socat
+        // GetMcpTools returns "MCP server sandboard not found" while the socat
         // relay is healthy.
         prefix: "agent -p --force --trust --approve-mcps --sandbox disabled --output-format stream-json",
         post_model: "",
@@ -107,7 +107,7 @@ pub const ENGINES: &[Engine] = &[
         // `--bare` skips Claude Code's OAuth and MCP auto-discovery. Auth is
         // OpenShell inference.local (see [`anthropic_inference_env`]); MCP is
         // the injected cockpit/seat file via `--mcp-config`.
-        prefix: "claude --bare --strict-mcp-config --mcp-config /sandbox/.honr/mcp/claude_mcp.json",
+        prefix: "claude --bare --strict-mcp-config --mcp-config /sandbox/.sandboard/mcp/claude_mcp.json",
         post_model: "",
         trailing: "--output-format stream-json --verbose --permission-mode bypassPermissions",
         prompt: PromptStyle::FlagP,
@@ -132,17 +132,17 @@ pub const ENGINES: &[Engine] = &[
 /// Env var name substituted into the engine command for the prompt/briefing.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PromptEnv {
-    /// Supervisor detached start: `HONR_BRIEFING`.
+    /// Supervisor detached start: `SANDBOARD_BRIEFING`.
     Briefing,
-    /// Cockpit foreground turn: `HONR_PROMPT`.
+    /// Cockpit foreground turn: `SANDBOARD_PROMPT`.
     Prompt,
 }
 
 impl PromptEnv {
     fn shell_ref(self) -> &'static str {
         match self {
-            Self::Briefing => "\"$HONR_BRIEFING\"",
-            Self::Prompt => "\"$HONR_PROMPT\"",
+            Self::Briefing => "\"$SANDBOARD_BRIEFING\"",
+            Self::Prompt => "\"$SANDBOARD_PROMPT\"",
         }
     }
 }
@@ -353,7 +353,7 @@ mod tests {
         let cmd = command_line("claude", PromptEnv::Briefing, None, None).unwrap();
         assert_eq!(
             cmd,
-            "claude --bare --strict-mcp-config --mcp-config /sandbox/.honr/mcp/claude_mcp.json -p \"$HONR_BRIEFING\" --output-format stream-json --verbose --permission-mode bypassPermissions"
+            "claude --bare --strict-mcp-config --mcp-config /sandbox/.sandboard/mcp/claude_mcp.json -p \"$SANDBOARD_BRIEFING\" --output-format stream-json --verbose --permission-mode bypassPermissions"
         );
         // Claude has no resume flag — conversation id must not change argv.
         let ignored = command_line("claude", PromptEnv::Briefing, Some("cid"), None).unwrap();
@@ -386,7 +386,7 @@ mod tests {
         assert_eq!(
             fresh,
             format!(
-                "agy --dangerously-skip-permissions --model '{}' --print-timeout 24h --output-format stream-json -p \"$HONR_BRIEFING\"",
+                "agy --dangerously-skip-permissions --model '{}' --print-timeout 24h --output-format stream-json -p \"$SANDBOARD_BRIEFING\"",
                 crate::antigravity::DEFAULT_SEAT_MODEL
             )
         );
@@ -400,8 +400,8 @@ mod tests {
         assert!(custom.contains("--model 'gemini-pro'"), "{custom}");
 
         let resume = command_line("agy", PromptEnv::Briefing, Some("cid"), None).unwrap();
-        assert!(resume.contains("--conversation \"$HONR_CONVERSATION\""), "{resume}");
-        assert!(resume.contains("-p \"$HONR_BRIEFING\""), "{resume}");
+        assert!(resume.contains("--conversation \"$SANDBOARD_CONVERSATION\""), "{resume}");
+        assert!(resume.contains("-p \"$SANDBOARD_BRIEFING\""), "{resume}");
         assert!(supports_resume("agy"));
         assert_eq!(pre_start_auth("agy").unwrap(), PreStartAuth::Agy);
     }
@@ -419,7 +419,7 @@ mod tests {
         let fresh = command_line("cursor", PromptEnv::Briefing, None, None).unwrap();
         assert_eq!(
             fresh,
-            "agent -p --force --trust --approve-mcps --sandbox disabled --output-format stream-json \"$HONR_BRIEFING\""
+            "agent -p --force --trust --approve-mcps --sandbox disabled --output-format stream-json \"$SANDBOARD_BRIEFING\""
         );
         assert!(!fresh.contains("--model"), "{fresh}");
         assert!(!fresh.contains("--resume"));
@@ -427,22 +427,22 @@ mod tests {
         let custom = command_line("cursor", PromptEnv::Briefing, None, Some("gpt-5")).unwrap();
         assert!(custom.contains("--model 'gpt-5'"), "{custom}");
         let model_at = custom.find("--model").expect("model");
-        let prompt_at = custom.find("\"$HONR_BRIEFING\"").expect("prompt");
+        let prompt_at = custom.find("\"$SANDBOARD_BRIEFING\"").expect("prompt");
         assert!(model_at < prompt_at, "{custom}");
 
         let resume = command_line("cursor", PromptEnv::Prompt, Some("sid"), None).unwrap();
         assert!(
-            resume.contains("--resume \"$HONR_CONVERSATION\""),
+            resume.contains("--resume \"$SANDBOARD_CONVERSATION\""),
             "{resume}"
         );
-        assert!(resume.ends_with("\"$HONR_PROMPT\""), "{resume}");
+        assert!(resume.ends_with("\"$SANDBOARD_PROMPT\""), "{resume}");
         assert!(!resume.contains("--model"), "{resume}");
 
         let resume_model =
             command_line("cursor", PromptEnv::Prompt, Some("sid"), Some("sonnet-4")).unwrap();
         assert!(resume_model.contains("--model 'sonnet-4'"), "{resume_model}");
         assert!(
-            resume_model.contains("--resume \"$HONR_CONVERSATION\""),
+            resume_model.contains("--resume \"$SANDBOARD_CONVERSATION\""),
             "{resume_model}"
         );
         assert!(supports_resume("cursor"));
@@ -463,7 +463,7 @@ mod tests {
         let fresh = command_line("opencode", PromptEnv::Briefing, None, None).unwrap();
         assert_eq!(
             fresh,
-            "opencode run --format json --auto \"$HONR_BRIEFING\""
+            "opencode run --format json --auto \"$SANDBOARD_BRIEFING\""
         );
         assert!(!fresh.contains("--model"), "{fresh}");
         assert!(!fresh.contains("--session"));
@@ -474,10 +474,10 @@ mod tests {
 
         let resume = command_line("opencode", PromptEnv::Prompt, Some("ses_abc"), None).unwrap();
         assert!(
-            resume.contains("--session \"$HONR_CONVERSATION\""),
+            resume.contains("--session \"$SANDBOARD_CONVERSATION\""),
             "{resume}"
         );
-        assert!(resume.ends_with("\"$HONR_PROMPT\""), "{resume}");
+        assert!(resume.ends_with("\"$SANDBOARD_PROMPT\""), "{resume}");
         assert!(supports_resume("opencode"));
         assert_eq!(pre_start_auth("opencode").unwrap(), PreStartAuth::None);
     }

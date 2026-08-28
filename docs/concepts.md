@@ -5,7 +5,7 @@ The ideas the rest of the docs assume. For terms in isolation, see the
 
 ## The board runs the work
 
-honr’s board is not a status report of work elsewhere. Changing a card *is* an
+sandboard’s board is not a status report of work elsewhere. Changing a card *is* an
 action: dispatch claims it, Approve creates Tasks from a proposal, answering
 Needs You unblocks a stopped agent.
 
@@ -41,7 +41,7 @@ workers read at claim time. Full detail: [Configuration](configuration.md).
 
 | Layer | Examples |
 |---|---|
-| **Process boot** | `HONR_DATABASE_URL`, compile-time Project + Task hierarchy |
+| **Process boot** | `SANDBOARD_DATABASE_URL`, compile-time Project + Task hierarchy |
 | **Board Settings** | OpenShell Policies, sandbox specs, agent runtime (incl. standing prompt), Forge |
 | **Project fields** | `clone_repo`, optional `sandbox_profile_id` override |
 | **`project_prompt`** | Optional Project-only standing extras |
@@ -54,7 +54,7 @@ Board-wide agent policy is Settings → Agent runtime **standing prompt** (empty
 default). Briefings also inject a tiny hardwired protocol (`PROTOCOL_MINIMUM`).
 `project_prompt` is optional Project extras — not seeded on create. **Quality
 gates** belong in standing text when you want them; name the toolchain
-explicitly. honr does not assume `cargo` unless standing text or the card's DoD
+explicitly. sandboard does not assume `cargo` unless standing text or the card's DoD
 says so.
 
 ## Operator and worker
@@ -63,11 +63,11 @@ Three roles, different reach:
 
 | Role | Who | Reach |
 |---|---|---|
-| **Operator** | You, and any chat agent you drive honr from | MCP at `/mcp`: shape Projects, triage, dispatch, park / steer / halt. Operator tools only. |
-| **Worker** | The agent working a card, inside a sandbox | GitHub and inference. **No network path to honr.** |
-| **Cockpit** | A privileged sandbox you attach a terminal to | honr's operator tools, plus inference and GitHub. No package-registry egress. |
+| **Operator** | You, and any chat agent you drive sandboard from | MCP at `/mcp`: shape Projects, triage, dispatch, park / steer / halt. Operator tools only. |
+| **Worker** | The agent working a card, inside a sandbox | GitHub and inference. **No network path to sandboard.** |
+| **Cockpit** | A privileged sandbox you attach a terminal to | sandboard's operator tools, plus inference and GitHub. No package-registry egress. |
 
-Workers cannot call honr. An agent that could reach the board’s MCP could
+Workers cannot call sandboard. An agent that could reach the board’s MCP could
 approve its own review — so the supervisor calls `claim` / `heartbeat` /
 `report` on its behalf.
 
@@ -86,7 +86,7 @@ costs nothing until you answer.
 
 ## Where the human stays
 
-**You merge on GitHub.** Approving in honr surfaces the pull request. honr has
+**You merge on GitHub.** Approving in sandboard surfaces the pull request. sandboard has
 no write access to your default branch.
 
 **Liveness is observed.** The supervisor parses the agent’s output stream. There

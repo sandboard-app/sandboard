@@ -1254,14 +1254,14 @@ impl ServerHandler for Operator {
         )
         .with_server_info({
             let mut me = rmcp::model::Implementation::default();
-            me.name = "honr".into();
-            me.title = Some("honr — agent orchestrator".into());
+            me.name = "sandboard".into();
+            me.title = Some("sandboard — agent orchestrator".into());
             me.version = env!("CARGO_PKG_VERSION").into();
             me
         })
         .with_instructions(match self.seat {
             McpSeat::Operator => {
-                "honr — an agent orchestration board. You are the operator seat: the \
+                "sandboard — an agent orchestration board. You are the operator seat: the \
                  human's liaison over operator tools only (no claim/heartbeat/report/report_pull_request/split/escalate/\
                  release/list_ready — those are worker verbs on the host/supervisor path).\n\n\
                  Start with board_snapshot. Live goals expose recent_retired for mid-project \
@@ -1293,7 +1293,7 @@ impl ServerHandler for Operator {
                  targets and card-specific gates. Boot, Settings, and Project fields do not \
                  belong in project_prompt — put board-wide escalation and quality gates in \
                  Settings → Agent runtime standing prompt; Project-specific rules via update on \
-                 the Project. Name test/lint commands explicitly; honr does not assume cargo \
+                 the Project. Name test/lint commands explicitly; sandboard does not assume cargo \
                  or any toolchain unless the board standing prompt, project_prompt, or a card's \
                  DoD names it. Task inputs are the Plan. Initial plan and impl splits write a \
                  proposal on the card → Review; Approve creates sibling Tasks. Read \
@@ -1302,7 +1302,7 @@ impl ServerHandler for Operator {
                  single card."
             }
             McpSeat::Host => {
-                 "honr — host MCP seat: operator tools plus worker verbs \
+                 "sandboard — host MCP seat: operator tools plus worker verbs \
                  (list_ready/claim/heartbeat/split/escalate/report/report_pull_request/release). \
                  Card lifecycle mutations still go through Board; this seat is for \
                  supervisor/host tooling, not the operator chatbot."
@@ -1313,9 +1313,9 @@ impl ServerHandler for Operator {
 
 /// Hosts rmcp's DNS-rebinding guard will accept on `/mcp`.
 ///
-/// Loopback + docker defaults, plus the authority from `HONR_PUBLIC_URL` /
-/// `~/.config/honr/public_url` (Tailscale Serve / reverse proxy) and any
-/// comma-separated `HONR_MCP_ALLOWED_HOSTS`.
+/// Loopback + docker defaults, plus the authority from `SANDBOARD_PUBLIC_URL` /
+/// `~/.config/sandboard/public_url` (Tailscale Serve / reverse proxy) and any
+/// comma-separated `SANDBOARD_MCP_ALLOWED_HOSTS`.
 fn mcp_allowed_hosts() -> Vec<String> {
     let mut hosts = vec![
         "localhost".into(),
@@ -1335,7 +1335,7 @@ fn mcp_allowed_hosts() -> Vec<String> {
             hosts.push(auth);
         }
     }
-    if let Ok(extra) = std::env::var("HONR_MCP_ALLOWED_HOSTS") {
+    if let Ok(extra) = std::env::var("SANDBOARD_MCP_ALLOWED_HOSTS") {
         for part in extra.split(',') {
             let h = part.trim();
             if h.is_empty() || hosts.iter().any(|e| e == h) {
@@ -1348,7 +1348,7 @@ fn mcp_allowed_hosts() -> Vec<String> {
 }
 
 fn configured_public_url() -> Option<String> {
-    if let Some(base) = std::env::var("HONR_PUBLIC_URL")
+    if let Some(base) = std::env::var("SANDBOARD_PUBLIC_URL")
         .ok()
         .map(|s| s.trim().trim_end_matches('/').to_string())
         .filter(|s| !s.is_empty())
@@ -1368,7 +1368,7 @@ fn configured_public_url() -> Option<String> {
 
 fn dirs_public_url_path() -> Option<std::path::PathBuf> {
     let home = std::env::var_os("HOME").filter(|h| !h.is_empty())?;
-    Some(std::path::PathBuf::from(home).join(".config/honr/public_url"))
+    Some(std::path::PathBuf::from(home).join(".config/sandboard/public_url"))
 }
 
 fn authority_from_public_url(url: &str) -> Option<String> {
@@ -1403,10 +1403,10 @@ fn split_host_port(authority: &str) -> Option<(&str, Option<&str>)> {
 /// without buying us server→client streams.
 pub fn service(board: SharedBoard) -> StreamableHttpService<Operator, NeverSessionManager> {
     // rmcp defaults to localhost/127.0.0.1/::1 only (DNS-rebinding guard).
-    // Cockpit's shipped honr MCP is stdio now (no HTTP hop at all); this
+    // Cockpit's shipped sandboard MCP is stdio now (no HTTP hop at all); this
     // allowlist only matters for other HTTP MCP clients reaching /mcp
     // directly (host Cursor, worker sandboxes on host.docker.internal,
-    // remote Cursor via Tailscale Serve — set HONR_PUBLIC_URL).
+    // remote Cursor via Tailscale Serve — set SANDBOARD_PUBLIC_URL).
     let mcp_http = StreamableHttpServerConfig::default()
         .with_legacy_session_mode(false)
         .with_allowed_hosts(mcp_allowed_hosts());
@@ -1573,7 +1573,7 @@ mod tests {
 
     fn test_board() -> (SharedBoard, ItemId) {
         let path = std::env::temp_dir().join(format!(
-            "honr-mcp-test-{}.json",
+            "sandboard-mcp-test-{}.json",
             std::process::id()
         ));
         let b = Arc::new(Board::new(Schema::default(), path));
@@ -1991,7 +1991,7 @@ mod tests {
             .header("host", "127.0.0.1:8080")
             .header("content-type", "application/json")
             .header("accept", "application/json, text/event-stream")
-            .header("mcp-session-id", "dead-session-from-previous-honr-process")
+            .header("mcp-session-id", "dead-session-from-previous-sandboard-process")
             .body(Body::from(
                 r#"{"jsonrpc":"2.0","method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"cursor","version":"1.0"}},"id":1}"#,
             ))
@@ -2015,7 +2015,7 @@ mod tests {
             .header("content-type", "application/json")
             .header("accept", "application/json, text/event-stream")
             .header("mcp-protocol-version", "2024-11-05")
-            .header("mcp-session-id", "dead-session-from-previous-honr-process")
+            .header("mcp-session-id", "dead-session-from-previous-sandboard-process")
             .body(Body::from(
                 r#"{"jsonrpc":"2.0","method":"tools/list","params":{},"id":2}"#,
             ))
@@ -2063,14 +2063,14 @@ mod tests {
     #[test]
     fn create_task_mcp_lands_in_backlog_and_refuses_nest() {
         let path = std::env::temp_dir().join(format!(
-            "honr-mcp-create-task-{}.json",
+            "sandboard-mcp-create-task-{}.json",
             std::process::id()
         ));
         let board = Arc::new(Board::new(Schema::default(), path));
         let operator = Operator::new(board.clone());
 
         let project = board
-            .create_project("Proj", "Ship it", "honr-app/honr", true, None)
+            .create_project("Proj", "Ship it", "sandboard-app/sandboard", true, None)
             .expect("project");
 
         let ack = operator
@@ -2096,7 +2096,7 @@ mod tests {
         assert_eq!(task.state, State::Backlog);
         assert_eq!(task.parent, Some(project.id));
         assert!(
-            task.intent.contains("honr-app/honr"),
+            task.intent.contains("sandboard-app/sandboard"),
             "Project clone_repo should stamp when intent omits clone: {}",
             task.intent
         );

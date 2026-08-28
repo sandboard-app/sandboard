@@ -1,6 +1,6 @@
 # Cockpit
 
-A durable terminal inside a sandbox that can reach honr's operator tools. Use
+A durable terminal inside a sandbox that can reach sandboard's operator tools. Use
 it when you want an agent that can triage the board with you, rather than one
 working a card.
 
@@ -24,7 +24,7 @@ what it did.
 
 Disconnecting the terminal does **not** stop the session — the sandbox and the
 conversation stay up under Start/Stop, and re-attaching resumes the same chat.
-Restarting honr does not stop it either: the supervisor reconciles, and you just
+Restarting sandboard does not stop it either: the supervisor reconciles, and you just
 open Cockpit again.
 
 ## What is actually durable
@@ -33,7 +33,7 @@ The session is a singleton record on the Board, not a file or a wrapper script:
 
 | Field | Meaning |
 |---|---|
-| `environment` | Sandbox name — defaults to `honr-cockpit` |
+| `environment` | Sandbox name — defaults to `sandboard-cockpit` |
 | `conversation_id` | Chat id the session resumes; minted if missing |
 | `status` | `Running`, or `Parked` — a hold that keeps sandbox and conversation |
 
@@ -45,7 +45,7 @@ Which image, CPU, memory, engine, and **Policy** (by id) Cockpit gets comes
 from the **cockpit sandbox spec** (Settings → OpenShell → Sandbox specs). Edit
 allow-list YAML under **Policies**; the spec only references it. Live policy is
 set at create and fixed for that sandbox. The sandbox name stays
-`honr-cockpit` regardless of which spec built it, so you can point
+`sandboard-cockpit` regardless of which spec built it, so you can point
 Cockpit at any spec you like.
 
 ## Driving it from the CLI
@@ -55,11 +55,11 @@ Same Board calls the UI makes. Scripts authenticate with HTTP Basic
 cookie — no login step, no cookie jar to manage.
 
 ```bash
-# HONR_URL = the origin you open the board on (Host / window.location.origin)
+# SANDBOARD_URL = the origin you open the board on (Host / window.location.origin)
 # Start (empty body; the supervisor fills in `environment`)
-curl -sS -u admin:"$HONR_PASSWORD" \
+curl -sS -u admin:"$SANDBOARD_PASSWORD" \
   -H 'Content-Type: application/json' -d '{}' \
-  "$HONR_URL/api/cockpit-session"
+  "$SANDBOARD_URL/api/cockpit-session"
 ```
 
 | Intent | Call |
@@ -73,12 +73,12 @@ curl -sS -u admin:"$HONR_PASSWORD" \
 Attach a host terminal once `environment` is set:
 
 ```bash
-ENV=$(curl -sS -u admin:"$HONR_PASSWORD" \
-  "$HONR_URL/api/cockpit-session" | jq -r '.session.environment // empty')
+ENV=$(curl -sS -u admin:"$SANDBOARD_PASSWORD" \
+  "$SANDBOARD_URL/api/cockpit-session" | jq -r '.session.environment // empty')
 openshell sandbox connect "$ENV"
 ```
 
-[`scripts/cockpit.sh`](https://github.com/honr-app/honr/blob/main/scripts/cockpit.sh) is a thin shim over exactly these
+[`scripts/cockpit.sh`](https://github.com/sandboard-app/sandboard/blob/main/scripts/cockpit.sh) is a thin shim over exactly these
 calls: `start` / `attach` / `park` / `resume` / `stop`.
 
 Do not `openshell sandbox delete` the cockpit box while a Board session still
@@ -108,15 +108,15 @@ secrets copied into the sandbox.
 
 MCP auth from inside the sandbox works differently from the host. Host Cursor
 uses browser OAuth against `/mcp`, and that dance does not work cleanly from
-inside a sandbox. So the shipped `honr` MCP entry is **stdio**, not HTTP: no
+inside a sandbox. So the shipped `sandboard` MCP entry is **stdio**, not HTTP: no
 login, no Bearer, no OAuth dance to skip.
 
 | Path | Contents |
 |---|---|
-| `/sandbox/.honr/mcp/mcp.json` | `honr` → `/sandbox/.honr/mcp/honr-mcp-stdio` (retries, then `socat` → `agent.sock`) |
-| `/sandbox/.honr/mcp/claude_mcp.json` | same shape; Claude loads it via `--mcp-config` |
+| `/sandbox/.sandboard/mcp/mcp.json` | `sandboard` → `/sandbox/.sandboard/mcp/sandboard-mcp-stdio` (retries, then `socat` → `agent.sock`) |
+| `/sandbox/.sandboard/mcp/claude_mcp.json` | same shape; Claude loads it via `--mcp-config` |
 | `/sandbox/.gemini/config/mcp_config.json` | same, for Antigravity |
-| `/sandbox/.config/opencode/opencode.jsonc` | OpenCode `mcp.honr`, `type: local` |
+| `/sandbox/.config/opencode/opencode.jsonc` | OpenCode `mcp.sandboard`, `type: local` |
 
 Injection happens when the sandbox becomes Ready, on
 `POST /api/cockpit-session/mcp-cred`, and on terminal attach. Do not run
@@ -125,8 +125,8 @@ host-style OAuth flow.
 
 ### How the MCP relay works
 
-honr keeps a board-owned `ExecSandboxInteractive` relay running `socat
-UNIX-LISTEN:/sandbox/.honr/mcp/agent.sock STDIO` inside the sandbox — its
+sandboard keeps a board-owned `ExecSandboxInteractive` relay running `socat
+UNIX-LISTEN:/sandbox/.sandboard/mcp/agent.sock STDIO` inside the sandbox — its
 gRPC-piped stdin/stdout are wired straight into the same `Operator` MCP
 handler that serves the HTTP `/mcp` endpoint (`rmcp::serve_server` over the
 pipe). No port, no network policy entry, no Bearer to mint — same path on
@@ -135,7 +135,7 @@ sandbox's own netns.
 
 ```mermaid
 flowchart TB
-  subgraph sandbox ["Sandbox (honr-cockpit)"]
+  subgraph sandbox ["Sandbox (sandboard-cockpit)"]
     agent["Agent MCP client<br/>(reads mcp.json)"]
     socatClient["socat - UNIX-CONNECT:agent.sock"]
     sock[["agent.sock"]]
@@ -146,7 +146,7 @@ flowchart TB
     sock <--> socatServer
   end
 
-  subgraph host ["honr host process"]
+  subgraph host ["sandboard host process"]
     grpcClient["exec_interactive_raw()"]
     pumpLoop["pump_loop()"]
     duplexPair[["tokio::io::duplex()"]]
