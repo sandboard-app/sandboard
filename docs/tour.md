@@ -3,12 +3,12 @@
 One card's life, start to finish. Nothing here needs to be installed — read it
 first and decide whether the loop is one you want.
 
-The board below is a real honr running against a fixture. Every screenshot on
+The board below is a real sandboard running against a fixture. Every screenshot on
 this page is captured from the running UI, so what you see is what ships.
 
 ## 1. The board
 
-![The honr board](images/desktop-board.png)
+![The sandboard board](images/desktop-board.png)
 
 Five columns, each asking a different question:
 
@@ -31,7 +31,7 @@ now.
 ## 2. A Project proposes its own breakdown
 
 You do not write the task list. You create a **Project**, point it at a repo,
-and say what you want. honr creates one claimable card — the *Initial plan* —
+and say what you want. sandboard creates one claimable card — the *Initial plan* —
 and an agent reads the repo and proposes the breakdown.
 
 That proposal comes back as a card in Review:
@@ -54,7 +54,7 @@ creates a sandbox, and runs an agent inside it.
 Running cards show what you would want mid-flight: which engine, how much of
 the run budget is left, and the sandbox name for logs.
 
-The agent has **no network path back to honr**. It cannot see the board, cannot
+The agent has **no network path back to sandboard**. It cannot see the board, cannot
 claim its own card, and cannot approve its own review. The supervisor speaks for
 it. Liveness is read from the agent’s output stream — not from a keepalive that
 could fire while the agent is wedged.
@@ -80,7 +80,7 @@ carrying the PR link, the diffstat, and whichever gates it ran.
 Review is sorted by size and risk, not arrival time — a large change with a
 failed gate sorts above a tiny clean one.
 
-**Approving in honr shows the PR.** You merge on GitHub. When the merge lands, a
+**Approving in sandboard shows the PR.** You merge on GitHub. When the merge lands, a
 webhook moves the card to Done. Siblings still in Review stay put unless GitHub
 reports CONFLICTING — then they bounce to Backlog for reclaim and rebase.
 UNKNOWN retries; repeated overlapping conflicts escalate to Needs You.

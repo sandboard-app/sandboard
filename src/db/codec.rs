@@ -55,7 +55,7 @@ where
     }
 }
 
-/// Meta key written after a successful one-shot `honr.json` import.
+/// Meta key written after a successful one-shot `sandboard.json` import.
 pub const META_JSON_IMPORTED: &str = "json_imported";
 
 /// Meta key for the board's next item id allocator.
@@ -288,7 +288,7 @@ fn parse_json_default<T: for<'de> Deserialize<'de> + Default>(
 }
 
 pub fn state_to_db(state: State) -> Result<String, StoreError> {
-    // Wire form matches honr.json (`snake_case`), including legacy aliases on load.
+    // Wire form matches sandboard.json (`snake_case`), including legacy aliases on load.
     let v = serde_json::to_value(state)
         .map_err(|e| StoreError::Query(format!("state serialize: {e}")))?;
     v.as_str()

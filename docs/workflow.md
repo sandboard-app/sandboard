@@ -7,7 +7,7 @@ the empty-board **Welcome** or **Help** OpenShell + sandbox guide, then
 ## The happy path
 
 1. **Create a Project** with a `clone_repo` (`owner/name`). That repo is what
-   the planning agent clones. honr creates an **Initial plan** Task that already
+   the planning agent clones. sandboard creates an **Initial plan** Task that already
    names that repo.
 2. **Start** the Initial plan. The agent clones, reads, and writes `plan.json`
    proposing sibling Tasks. The card lands in **Review**.
@@ -37,7 +37,7 @@ The new card lands in **Backlog**, ready for **Start** / `dispatch` (or Project
 auto mode). Parent must be a Project — nesting under a Task is refused.
 
 Each Task must name its clone target (`owner/name`) in intent and/or definition
-of done. When the caller omits an explicit `Clone repository:` line, honr stamps
+of done. When the caller omits an explicit `Clone repository:` line, sandboard stamps
 the Project default from Project intent when one is present; otherwise Remotes
 escalate rather than guessing.
 
@@ -77,7 +77,7 @@ claim uses for resume, rebase, and request-changes.
 
 ## Standing instructions and quality gates
 
-honr stacks configuration in layers ([Configuration](configuration.md)):
+sandboard stacks configuration in layers ([Configuration](configuration.md)):
 
 1. **Process boot** — database URL, compile-time hierarchy.
 2. **Board Settings** — Policies, sandbox specs, agent runtime (standing prompt), Forge/providers.
@@ -96,7 +96,7 @@ Project needs extras. Fresh boards leave standing prompt empty.
 
 **Quality gates** — commands agents must run before publish — go in the board
 standing prompt when they apply everywhere, or in `project_prompt` / card DoD
-when narrower. Name the commands explicitly. honr does **not** assume `cargo`
+when narrower. Name the commands explicitly. sandboard does **not** assume `cargo`
 unless those instructions name it.
 
 ## Triage order
@@ -105,7 +105,7 @@ unless those instructions name it.
 2. **Review** — finished work. Sort by size and risk, not arrival time.
 3. Everything else waits for a digest (`board_snapshot` / `board_digest`).
 
-If you are driving honr through a chat agent, interrupt the human for three
+If you are driving sandboard through a chat agent, interrupt the human for three
 things only: irreversible actions, an ambiguity blocking several items, and
 repeated failure on the same card. Otherwise summarise and let them walk away.
 
@@ -145,7 +145,7 @@ conversation to continue. Prefer **steer** when the note can wait.
 ## PR review feedback
 
 When GitHub submits a PR review with state `CHANGES_REQUESTED` or `COMMENT`,
-honr treats it like human **Request changes**: pointer steer note, clear any
+sandboard treats it like human **Request changes**: pointer steer note, clear any
 proposal, move the matching card to Backlog. Same path for both review states —
 no auto-dispatch.
 
@@ -164,7 +164,7 @@ submitted reviews and calls the same Board helper — first observation only see
 a per-PR cursor so historical reviews do not bounce the card.
 
 GitHub `APPROVED` and dismissed reviews are board no-ops. Approving a PR on
-GitHub does **not** Approve the card in honr, and it does not merge. Approve and
+GitHub does **not** Approve the card in sandboard, and it does not merge. Approve and
 merge stay human.
 
 ## When main moves
@@ -177,7 +177,7 @@ the merged PR, it completes. Webhook and polling both go through the same Board
 completion helper.
 
 **2. Review catch-up (scoped, CONFLICTING-only).** Main advancing under a Review PR
-is a no-op unless GitHub reports a conflict. honr observes the host GitHub API
+is a no-op unless GitHub reports a conflict. sandboard observes the host GitHub API
 `mergeable` field with an App installation token — not a `git rebase` in a
 sandbox — for open Review PRs on the **same upstream** that advanced (tip
 advance and same-parent sibling merge share this path):
@@ -222,7 +222,7 @@ gh extension install cli/gh-webhook   # once
 gh webhook forward \
   --repo=<owner/name> \
   --events=pull_request,pull_request_review,push \
-  --url="$HONR_URL/api/webhooks/github"
+  --url="$SANDBOARD_URL/api/webhooks/github"
 ```
 
 `pull_request` and `push` cover merge → Done and main-advanced;

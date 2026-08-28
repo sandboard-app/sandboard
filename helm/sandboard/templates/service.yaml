@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "sandboard.fullname" . }}
+  labels:
+    {{- include "sandboard.labels" . | nindent 4 }}
+    {{- include "sandboard.selectorLabels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - port: {{ .Values.service.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "sandboard.selectorLabels" . | nindent 4 }}

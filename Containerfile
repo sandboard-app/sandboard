@@ -1,7 +1,7 @@
-# honr board image — API binary + built React UI, pushed as
-# quay.io/honr-app/honr. Distinct from sandbox/Containerfile (agent sandboxes).
+# sandboard board image — API binary + built React UI, pushed as
+# quay.io/sandboard-app/sandboard. Distinct from sandbox/Containerfile (agent sandboxes).
 #
-#   podman build -f Containerfile -t quay.io/honr-app/honr:latest .
+#   podman build -f Containerfile -t quay.io/sandboard-app/sandboard:latest .
 #   make image / make image-push
 
 # ---- UI --------------------------------------------------------------------
@@ -45,7 +45,7 @@ COPY Cargo.toml Cargo.lock ./
 RUN mkdir -p src \
  && printf 'fn main() {}\n' > src/main.rs \
  && cargo build --release --locked \
- && rm -rf src target/release/deps/honr* target/release/honr*
+ && rm -rf src target/release/deps/sandboard* target/release/sandboard*
 
 COPY migrations/ ./migrations/
 COPY src/ ./src/
@@ -64,16 +64,16 @@ USER root
 # ca-certificates for tonic/reqwest rustls (tls-native-roots / webpki-roots).
 RUN microdnf install -y --setopt=install_weak_deps=0 ca-certificates \
  && microdnf clean all \
- && groupadd -r -g 1000 honr \
- && useradd -r -u 1000 -g honr -d /app -s /sbin/nologin honr
+ && groupadd -r -g 1000 sandboard \
+ && useradd -r -u 1000 -g sandboard -d /app -s /sbin/nologin sandboard
 
 WORKDIR /app
-COPY --from=api /src/target/release/honr /app/honr
+COPY --from=api /src/target/release/sandboard /app/sandboard
 COPY --from=ui /src/web/dist /app/web/dist
 
-USER honr
+USER sandboard
 EXPOSE 8080
-ENV HONR_BIND_ADDR=0.0.0.0 \
-    HONR_PORT=8080
+ENV SANDBOARD_BIND_ADDR=0.0.0.0 \
+    SANDBOARD_PORT=8080
 
-ENTRYPOINT ["/app/honr"]
+ENTRYPOINT ["/app/sandboard"]

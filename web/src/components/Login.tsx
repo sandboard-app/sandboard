@@ -63,14 +63,14 @@ export function Login({
       <section className="login-panel" aria-labelledby="login-title">
         <header className="login-brand">
           <img
-            src="/honr-logo.png"
+            src="/sandboard-logo.png"
             alt=""
             className="login-brand-mark"
             width={72}
             height={72}
           />
           <h1 id="login-title" className="login-wordmark">
-            honr
+            sandboard
           </h1>
           <p className="login-tagline">A board for agent work.</p>
         </header>

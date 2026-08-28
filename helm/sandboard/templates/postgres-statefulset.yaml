@@ -1,20 +1,20 @@
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: {{ include "honr.postgres.serviceName" . }}
+  name: {{ include "sandboard.postgres.serviceName" . }}
   labels:
-    {{- include "honr.labels" . | nindent 4 }}
-    {{- include "honr.postgres.selectorLabels" . | nindent 4 }}
+    {{- include "sandboard.labels" . | nindent 4 }}
+    {{- include "sandboard.postgres.selectorLabels" . | nindent 4 }}
 spec:
-  serviceName: {{ include "honr.postgres.serviceName" . }}
+  serviceName: {{ include "sandboard.postgres.serviceName" . }}
   replicas: 1
   selector:
     matchLabels:
-      {{- include "honr.postgres.selectorLabels" . | nindent 6 }}
+      {{- include "sandboard.postgres.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       labels:
-        {{- include "honr.postgres.selectorLabels" . | nindent 8 }}
+        {{- include "sandboard.postgres.selectorLabels" . | nindent 8 }}
     spec:
       containers:
         - name: postgres
@@ -32,7 +32,7 @@ spec:
             - name: POSTGRES_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "honr.secretName" . }}
+                  name: {{ include "sandboard.secretName" . }}
                   key: postgres-password
             # Put PGDATA in a subdirectory — the volume root is often lost+found
             # owned, and Postgres refuses a non-empty data directory.
@@ -67,7 +67,7 @@ spec:
     - metadata:
         name: data
         labels:
-          {{- include "honr.postgres.selectorLabels" . | nindent 10 }}
+          {{- include "sandboard.postgres.selectorLabels" . | nindent 10 }}
       spec:
         accessModes:
           - ReadWriteOnce

@@ -383,7 +383,7 @@ export const api = {
   stopCockpitSession: (): Promise<null> => del("/cockpit-session"),
 
   /**
-   * Mint honr-cockpit MCP tokens for the logged-in user and inject mcp.json into
+   * Mint sandboard-cockpit MCP tokens for the logged-in user and inject mcp.json into
    * the Board cockpit sandbox. Does not return secrets to the browser.
    */
   provisionCockpitMcp: (): Promise<{

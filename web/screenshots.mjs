@@ -1,7 +1,7 @@
 /**
  * Capture the board so it can be looked at, not just reasoned about.
  *
- * Runs a *scratch* honr on :8081 against a fixture board, so real state is
+ * Runs a *scratch* sandboard on :8081 against a fixture board, so real state is
  * never touched and the captures are deterministic. Shoots desktop and phone,
  * because §8's whole claim is that the digest is what you read on a phone.
  *
@@ -9,7 +9,7 @@
  *
  * PNGs land in web/shots/ (gitignored).
  *
- * `HONR_SHOTS_STRICT=1` is for CI, where these PNGs become the docs site's
+ * `SANDBOARD_SHOTS_STRICT=1` is for CI, where these PNGs become the docs site's
  * images. Both fallbacks below are correct on a laptop and wrong in a pipeline:
  * skipping on a missing browser publishes a book of broken <img>, and the
  * hand-written mock server serves a snapshot shape that has already drifted
@@ -23,11 +23,11 @@ import { mkdirSync, writeFileSync, copyFileSync, rmSync, existsSync, readFileSyn
 import { setTimeout as sleep } from "node:timers/promises";
 
 const ROOT = new URL("..", import.meta.url).pathname;
-const SCRATCH = "/tmp/honr-ui";
+const SCRATCH = "/tmp/sandboard-ui";
 const OUT = `${ROOT}web/shots`;
 const PORT = 8081;
 const BASE = `http://127.0.0.1:${PORT}`;
-const STRICT = process.env.HONR_SHOTS_STRICT === "1";
+const STRICT = process.env.SANDBOARD_SHOTS_STRICT === "1";
 
 function fatal(why) {
   console.error(`\n[shots] ${why}`);
@@ -42,26 +42,26 @@ mkdirSync(SCRATCH, { recursive: true });
 rmSync(OUT, { recursive: true, force: true });
 mkdirSync(OUT, { recursive: true });
 
-// A scratch honr: fixture board in its own state dir. Dispatch starts with the
-// process (honr.yaml is retired); without OpenShell nothing claims cards, so
+// A scratch sandboard: fixture board in its own state dir. Dispatch starts with the
+// process (sandboard.yaml is retired); without OpenShell nothing claims cards, so
 // the shoot stays deterministic.
-writeFileSync(`${SCRATCH}/honr.json`, execSync(`node ${ROOT}web/ui-fixture.mjs`).toString());
+writeFileSync(`${SCRATCH}/sandboard.json`, execSync(`node ${ROOT}web/ui-fixture.mjs`).toString());
 mkdirSync(`${SCRATCH}/web`, { recursive: true });
 execSync(`cp -R ${ROOT}web/dist ${SCRATCH}/web/dist`);
-let honr;
-if (STRICT && !existsSync(`${ROOT}target/debug/honr`)) {
-  fatal("target/debug/honr is missing — run `cargo build --bin honr` first.\nThe mock fallback would publish screenshots of a snapshot shape honr no longer serves.");
+let sandboard;
+if (STRICT && !existsSync(`${ROOT}target/debug/sandboard`)) {
+  fatal("target/debug/sandboard is missing — run `cargo build --bin sandboard` first.\nThe mock fallback would publish screenshots of a snapshot shape sandboard no longer serves.");
 }
-if (existsSync(`${ROOT}target/debug/honr`)) {
-  honr = spawn(`${ROOT}target/debug/honr`, [], {
+if (existsSync(`${ROOT}target/debug/sandboard`)) {
+  sandboard = spawn(`${ROOT}target/debug/sandboard`, [], {
     cwd: SCRATCH,
-    env: { ...process.env, HONR_PORT: String(PORT) },
+    env: { ...process.env, SANDBOARD_PORT: String(PORT) },
     stdio: "inherit",
   });
-  process.on("exit", () => honr.kill());
+  process.on("exit", () => sandboard.kill());
 } else {
   // Lightweight server serving web/dist and fixture data
-  const rawData = JSON.parse(readFileSync(`${SCRATCH}/honr.json`, "utf8"));
+  const rawData = JSON.parse(readFileSync(`${SCRATCH}/sandboard.json`, "utf8"));
   const snapshotData = JSON.stringify({
     items: Object.values(rawData.items),
     levels: [
@@ -73,8 +73,8 @@ if (existsSync(`${ROOT}target/debug/honr`)) {
     goals: [
       {
         id: 1,
-        title: "honr builds honr",
-        intent: "honr takes cards against its own source and hands back reviewable pull requests.",
+        title: "sandboard builds sandboard",
+        intent: "sandboard takes cards against its own source and hands back reviewable pull requests.",
         progress: 0.5,
         leaves_done: 4,
         leaves_total: 8,
@@ -102,7 +102,7 @@ if (existsSync(`${ROOT}target/debug/honr`)) {
       res.end(
         JSON.stringify({
           ...item,
-          ancestry: [{ level: "Vision", title: "honr builds honr", intent: "honr takes cards" }],
+          ancestry: [{ level: "Vision", title: "sandboard builds sandboard", intent: "sandboard takes cards" }],
           constraints: [],
           children: [],
         })
@@ -126,7 +126,7 @@ if (existsSync(`${ROOT}target/debug/honr`)) {
     }
   });
   server.listen(PORT, "127.0.0.1");
-  honr = { kill: () => server.close() };
+  sandboard = { kill: () => server.close() };
 }
 
 // Wait for server readiness
@@ -166,7 +166,7 @@ let browser;
 try {
   browser = await chromium.launch();
 } catch (err) {
-  honr.kill();
+  sandboard.kill();
   const why = err.message.split("\n")[0];
   if (STRICT) {
     fatal(`Playwright could not launch chromium: ${why}\nRun \`npx playwright install --with-deps chromium\`.`);
@@ -300,7 +300,7 @@ await shoot("desktop-drawer-plan", DESKTOP, async (page) => {
 });
 
 await browser.close();
-honr.kill();
+sandboard.kill();
 
 // A capture that silently did not happen is the failure mode this whole file is
 // written against: the book would build green with broken images.

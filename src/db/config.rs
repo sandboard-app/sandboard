@@ -1,13 +1,13 @@
-//! Board database URL config (compiled default / `HONR_DATABASE_URL`).
+//! Board database URL config (compiled default / `SANDBOARD_DATABASE_URL`).
 
 use serde::{Deserialize, Serialize};
 
-/// Env override for `board.database.url`. Matches the `HONR_*` pattern used for
+/// Env override for `board.database.url`. Matches the `SANDBOARD_*` pattern used for
 /// the listen port.
-pub const ENV_DATABASE_URL: &str = "HONR_DATABASE_URL";
+pub const ENV_DATABASE_URL: &str = "SANDBOARD_DATABASE_URL";
 
 /// Default when yaml omits the key — local SQLite beside the process cwd.
-pub const DEFAULT_DATABASE_URL: &str = "sqlite:honr.db";
+pub const DEFAULT_DATABASE_URL: &str = "sqlite:sandboard.db";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DatabaseBackend {
@@ -81,7 +81,7 @@ pub enum ParseDatabaseUrlError {
 /// Board database URL (process boot).
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct BoardDatabaseConfig {
-    /// SQLx URL. Default `sqlite:honr.db`. Override with `HONR_DATABASE_URL`.
+    /// SQLx URL. Default `sqlite:sandboard.db`. Override with `SANDBOARD_DATABASE_URL`.
     #[serde(default = "default_url")]
     pub url: String,
 }
@@ -103,7 +103,7 @@ impl BoardDatabaseConfig {
     }
 }
 
-/// Prefer `HONR_DATABASE_URL` when set; otherwise keep the compiled default.
+/// Prefer `SANDBOARD_DATABASE_URL` when set; otherwise keep the compiled default.
 pub fn apply_database_url_override(cfg: &mut BoardDatabaseConfig) {
     if let Ok(url) = std::env::var(ENV_DATABASE_URL) {
         let url = url.trim();
@@ -119,23 +119,23 @@ mod tests {
 
     #[test]
     fn parses_sqlite_forms() {
-        let u = parse_database_url("sqlite:honr.db").unwrap();
+        let u = parse_database_url("sqlite:sandboard.db").unwrap();
         assert_eq!(u.backend(), DatabaseBackend::Sqlite);
-        assert_eq!(u.as_str(), "sqlite:honr.db");
+        assert_eq!(u.as_str(), "sqlite:sandboard.db");
 
         let mem = parse_database_url("sqlite::memory:").unwrap();
         assert_eq!(mem.backend(), DatabaseBackend::Sqlite);
 
-        let slash = parse_database_url("sqlite://localhost/tmp/honr.db").unwrap();
+        let slash = parse_database_url("sqlite://localhost/tmp/sandboard.db").unwrap();
         assert_eq!(slash.backend(), DatabaseBackend::Sqlite);
     }
 
     #[test]
     fn parses_postgres_forms() {
-        let u = parse_database_url("postgres://honr:honr@localhost:5432/honr").unwrap();
+        let u = parse_database_url("postgres://sandboard:sandboard@localhost:5432/sandboard").unwrap();
         assert_eq!(u.backend(), DatabaseBackend::Postgres);
 
-        let u2 = parse_database_url("postgresql://localhost/honr").unwrap();
+        let u2 = parse_database_url("postgresql://localhost/sandboard").unwrap();
         assert_eq!(u2.backend(), DatabaseBackend::Postgres);
     }
 
@@ -146,14 +146,14 @@ mod tests {
             Err(ParseDatabaseUrlError::Empty)
         ));
         assert!(matches!(
-            parse_database_url("mysql://localhost/honr"),
+            parse_database_url("mysql://localhost/sandboard"),
             Err(ParseDatabaseUrlError::UnsupportedScheme { .. })
         ));
     }
 
     #[test]
     fn yaml_defaults_to_sqlite() {
-        let cfg: BoardDatabaseConfig = serde_yaml::from_str("url: sqlite:honr.db").unwrap();
+        let cfg: BoardDatabaseConfig = serde_yaml::from_str("url: sqlite:sandboard.db").unwrap();
         assert_eq!(cfg.parsed().unwrap().backend(), DatabaseBackend::Sqlite);
 
         let empty: BoardDatabaseConfig = serde_yaml::from_str("{}").unwrap();

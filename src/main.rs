@@ -1,4 +1,4 @@
-//! honr — an agent orchestrator whose board is a control plane, not a report.
+//! sandboard — an agent orchestrator whose board is a control plane, not a report.
 
 mod antigravity;
 mod antigravity_oauth;
@@ -73,7 +73,7 @@ async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "honr=info,tower_http=warn".into()),
+                .unwrap_or_else(|_| "sandboard=info,tower_http=warn".into()),
         )
         .init();
 
@@ -97,11 +97,11 @@ async fn main() -> anyhow::Result<()> {
     });
 
     // Hierarchy + agent create knobs are compiled defaults. Database URL is
-    // process boot only (`HONR_DATABASE_URL` else sqlite:honr.db) — it cannot
+    // process boot only (`SANDBOARD_DATABASE_URL` else sqlite:sandboard.db) — it cannot
     // live on board Settings (Settings persist inside the DB).
     let mut schema = Schema::default();
     db::apply_database_url_override(&mut schema.board.database);
-    let json_path = PathBuf::from("honr.json");
+    let json_path = PathBuf::from("sandboard.json");
     let board: SharedBoard = match schema.board.database.parsed() {
         Ok(url) => {
             tracing::info!(%url, backend = %url.backend(), "board database configured");
@@ -117,7 +117,7 @@ async fn main() -> anyhow::Result<()> {
             )
         }
         Err(e) => {
-            tracing::warn!("board.database.url invalid ({e}); using honr.json");
+            tracing::warn!("board.database.url invalid ({e}); using sandboard.json");
             Arc::new(Board::load_or_new(schema.clone(), json_path))
         }
     };
@@ -182,13 +182,13 @@ async fn main() -> anyhow::Result<()> {
 
     // Overridable so a scratch instance (the UI screenshot harness) can run
     // alongside the real one instead of fighting it for the port. Bind host
-    // stays loopback by default; containers set HONR_BIND_ADDR=0.0.0.0 so the
+    // stays loopback by default; containers set SANDBOARD_BIND_ADDR=0.0.0.0 so the
     // Service can reach the pod.
-    let host = std::env::var("HONR_BIND_ADDR").unwrap_or_else(|_| "127.0.0.1".into());
-    let port = std::env::var("HONR_PORT").unwrap_or_else(|_| "8080".into());
+    let host = std::env::var("SANDBOARD_BIND_ADDR").unwrap_or_else(|_| "127.0.0.1".into());
+    let port = std::env::var("SANDBOARD_PORT").unwrap_or_else(|_| "8080".into());
     let addr = format!("{host}:{port}");
     let listener = tokio::net::TcpListener::bind(&addr).await?;
-    tracing::info!("honr listening on http://{addr}  (MCP at /mcp)");
+    tracing::info!("sandboard listening on http://{addr}  (MCP at /mcp)");
 
     // Graceful shutdown stops accepting, then waits for in-flight connections.
     // Board SSE and MCP streams never close on their own, so we race the drain

@@ -237,7 +237,7 @@ mod tests {
 
     fn temp_board() -> Arc<Board> {
         let path = std::env::temp_dir().join(format!(
-            "honr-provider-types-{}.json",
+            "sandboard-provider-types-{}.json",
             std::process::id()
         ));
         let _ = std::fs::remove_file(&path);

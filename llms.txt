@@ -1,11 +1,11 @@
-# honr — agent bootstrap
+# sandboard — agent bootstrap
 
-Plain-text guide for an operator agent bringing up a fresh honr board.
+Plain-text guide for an operator agent bringing up a fresh sandboard board.
 Human docs: /docs (Quickstart, Your first agent, Configuration).
 This file is public and needs no auth.
 
-honr is a board pointed at a repository. Moving a card starts a sandboxed
-coding agent; pull requests come back for a human to merge. Approving in honr
+sandboard is a board pointed at a repository. Moving a card starts a sandboxed
+coding agent; pull requests come back for a human to merge. Approving in sandboard
 shows the PR; you merge on GitHub.
 
 Work the product path. Do not invent a parallel bootstrap (extra secret stores
@@ -18,7 +18,7 @@ the API the same way a human pastes into the UI.
 - Every step has a check. Do not continue until it passes.
 - In this stack, half-finished setup fails as a hang, not a loud error. Treat
   silence as failure.
-- honr does not read the host keychain or OpenShell files on disk. You (or the
+- sandboard does not read the host keychain or OpenShell files on disk. You (or the
   human) supply PEMs and secrets over the API; the board seals them.
 - `/mcp` is for operators (Projects, create_task, triage, dispatch, park,
   steer, approve). Worker verbs (`claim`, `heartbeat`, `report`, …) are
@@ -41,25 +41,25 @@ public paths (this file, `/healthz`, `/auth/*`, MCP OAuth discovery).
 1. `GET /auth/status` — if `bootstrap` is true, create admin:
    `POST /auth/bootstrap` with JSON `{ "username", "password" }`
    (password ≥ 8 chars). Returns a session cookie.
-2. After bootstrap: session cookie (`honr_session`) or HTTP Basic with the
+2. After bootstrap: session cookie (`sandboard_session`) or HTTP Basic with the
    local admin username/password on `/api/*`.
 3. MCP: Streamable HTTP at `/mcp`. Authenticate with MCP OAuth (browser login /
-   consent) once admin exists. Tokens survive honr restarts.
+   consent) once admin exists. Tokens survive sandboard restarts.
 
 Check: `GET /api/board` returns JSON (not 401).
 
-## Host prerequisites (outside honr)
+## Host prerequisites (outside sandboard)
 
 These are not Settings fields. Confirm with the human / host tools before
-pasting anything into honr.
+pasting anything into sandboard.
 
 | Need | Check |
 |---|---|
 | Container engine the gateway can reach | `docker info` (or equivalent) succeeds |
 | OpenShell gateway up | `openshell status` → Connected + Authenticated |
-| Sandbox image named by your spec | e.g. `quay.io/honr-app/sandbox-cursor:latest` built (`make sandbox` from repo root) — four seeded specs already point at one image per engine, see below |
+| Sandbox image named by your spec | e.g. `quay.io/sandboard-app/sandbox-cursor:latest` built (`make sandbox` from repo root) — four seeded specs already point at one image per engine, see below |
 
-`DOCKER_HOST` belongs to the gateway process, not to honr.
+`DOCKER_HOST` belongs to the gateway process, not to sandboard.
 
 ## Bootstrap order (Settings)
 
@@ -74,7 +74,7 @@ Same order as Welcome / Help → OpenShell + sandbox.
 
 If the OpenShell CLI on this machine already talks to the gateway, client PEMs
 are commonly under `~/.config/openshell/gateways/<name>/mtls/` (`ca.crt`,
-`tls.crt`, `tls.key`). Read them and upload; do not assume honr will find them.
+`tls.crt`, `tls.key`). Read them and upload; do not assume sandboard will find them.
 
 Check: `GET /api/openshell/status` → `healthy: true`, `mtls.complete: true`,
 `not_configured: false`.
@@ -119,10 +119,10 @@ Policies are named OpenShell YAML allow-lists. Specs reference a policy by id
 
 `GET /api/sandbox-profiles` already has four seeded rows on any board:
 `sandbox-cursor`, `sandbox-agy`, `sandbox-claude`, `sandbox-opencode`, each
-pointed at its own `quay.io/honr-app/sandbox-<engine>:latest` image and a
-matching minimal Cockpit policy (`cockpit-cursor`, …) with honr MCP already
+pointed at its own `quay.io/sandboard-app/sandbox-<engine>:latest` image and a
+matching minimal Cockpit policy (`cockpit-cursor`, …) with sandboard MCP already
 attached. None of them is the default — seeding never picks one, because
-which engine to run is the operator's call, not honr's guess. Set one with
+which engine to run is the operator's call, not sandboard's guess. Set one with
 `POST /api/sandbox-profiles/{id}/default` (or the UI's **Set default**), and
 point Cockpit at a different one with `POST /api/sandbox-profiles/{id}/cockpit`
 (or **Use for Cockpit**) instead of building a spec from scratch — only create
@@ -138,7 +138,7 @@ resource limits):
 - `POST /api/sandbox-profiles/{id}/default`
 
 Create-form default policy is minimal (`network_policies: {}`). Add egress the
-work needs under Policies (Cursor hosts, GitHub, and for cockpit: host honr MCP
+work needs under Policies (Cursor hosts, GitHub, and for cockpit: host sandboard MCP
 with `protocol: mcp`) — or start from one of the four seeded Cockpit policies
 above and adapt it; do not silently assume every install wants the same
 allow-list.
@@ -160,7 +160,7 @@ practical gates.
 Only after Connectivity, Providers, and a default sandbox spec are ready.
 
 1. Create a Project: `POST /api/items` with level Project, intent, and required
-   `clone_repo` as `owner/name`. honr seeds a claimable **Initial plan** Task.
+   `clone_repo` as `owner/name`. sandboard seeds a claimable **Initial plan** Task.
 2. `POST /api/items/{id}/dispatch` on the Initial plan (confirm spend with the
    human first).
 3. Card moves Backlog → Running → Review with a proposed breakdown (`plan.json`).

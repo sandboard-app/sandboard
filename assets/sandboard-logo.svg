@@ -1,5 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="honr">
-  <!-- Flat stand-in; prefer assets/honr-logo.png for the full mark. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="sandboard">
+  <!-- Flat stand-in; prefer assets/sandboard-logo.png for the full mark. -->
   <g fill="#f05a1a" transform="translate(64 64) rotate(45)">
     <path d="M-34 -34 H34 V-8 Q8 -2 -34 6 Z"/>
     <path d="M-34 14 Q0 6 34 12 L34 16 Q0 10 -34 18 Z"/>

@@ -1,4 +1,4 @@
-honr is installed in namespace {{ .Release.Namespace }}.
+sandboard is installed in namespace {{ .Release.Namespace }}.
 
   Board URL:  {{ .Values.ingress.publicUrl }}
   Health:     {{ .Values.ingress.publicUrl }}/healthz

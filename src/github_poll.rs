@@ -441,7 +441,7 @@ async fn fetch_default_tip(token: &str, owner_repo: &str) -> Result<Option<(Stri
 
 fn client() -> Result<reqwest::Client, String> {
     reqwest::Client::builder()
-        .user_agent("honr")
+        .user_agent("sandboard")
         .build()
         .map_err(|e| e.to_string())
 }
@@ -467,8 +467,8 @@ mod tests {
         impl Guard {
             pub fn set(base: &str) -> Self {
                 let _lock = LOCK.lock().unwrap_or_else(|e| e.into_inner());
-                let prev = std::env::var("HONR_GITHUB_API").ok();
-                std::env::set_var("HONR_GITHUB_API", base);
+                let prev = std::env::var("SANDBOARD_GITHUB_API").ok();
+                std::env::set_var("SANDBOARD_GITHUB_API", base);
                 Self { prev, _lock }
             }
         }
@@ -476,8 +476,8 @@ mod tests {
         impl Drop for Guard {
             fn drop(&mut self) {
                 match &self.prev {
-                    Some(v) => std::env::set_var("HONR_GITHUB_API", v),
-                    None => std::env::remove_var("HONR_GITHUB_API"),
+                    Some(v) => std::env::set_var("SANDBOARD_GITHUB_API", v),
+                    None => std::env::remove_var("SANDBOARD_GITHUB_API"),
                 }
             }
         }
@@ -489,7 +489,7 @@ mod tests {
 
     fn test_board(tag: &str) -> (std::path::PathBuf, SharedBoard, crate::secrets::master_key_env::Guard) {
         let dir = std::env::temp_dir().join(format!(
-            "honr-test-ghpoll-{tag}-{}",
+            "sandboard-test-ghpoll-{tag}-{}",
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
@@ -617,7 +617,7 @@ mod tests {
             Some(crate::model::PullRequest {
                 url: "https://github.com/acme/widgets/pull/7".into(),
                 base: Some(crate::model::PullRequestEnd::new("acme/widgets", "main")),
-                head: Some(crate::model::PullRequestEnd::new("acme/widgets", "honr/t")),
+                head: Some(crate::model::PullRequestEnd::new("acme/widgets", "sandboard/t")),
                 ..Default::default()
             }),
         );
@@ -697,7 +697,7 @@ mod tests {
             Some(crate::model::PullRequest {
                 url: "https://github.com/acme/widgets/pull/7".into(),
                 base: Some(crate::model::PullRequestEnd::new("acme/widgets", "main")),
-                head: Some(crate::model::PullRequestEnd::new("acme/widgets", "honr/t")),
+                head: Some(crate::model::PullRequestEnd::new("acme/widgets", "sandboard/t")),
                 ..Default::default()
             }),
         );
@@ -706,7 +706,7 @@ mod tests {
             Some(crate::model::PullRequest {
                 url: "https://github.com/acme/widgets/pull/8".into(),
                 base: Some(crate::model::PullRequestEnd::new("acme/widgets", "main")),
-                head: Some(crate::model::PullRequestEnd::new("acme/widgets", "honr/sib")),
+                head: Some(crate::model::PullRequestEnd::new("acme/widgets", "sandboard/sib")),
                 ..Default::default()
             }),
         );
@@ -777,7 +777,7 @@ mod tests {
             Some(crate::model::PullRequest {
                 url: "https://github.com/acme/widgets/pull/7".into(),
                 base: Some(crate::model::PullRequestEnd::new("acme/widgets", "main")),
-                head: Some(crate::model::PullRequestEnd::new("acme/widgets", "honr/t")),
+                head: Some(crate::model::PullRequestEnd::new("acme/widgets", "sandboard/t")),
                 ..Default::default()
             }),
         );

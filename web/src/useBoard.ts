@@ -1,7 +1,7 @@
 import { useEffect, useReducer, useRef, useState } from "react";
 import { api } from "./api.js";
 import type { BoardEvent, GoalView, Snapshot, StoryLine, WorkItem } from "./types.js";
-import { honrWsUrl } from "./wsUrl.js";
+import { sandboardWsUrl } from "./wsUrl.js";
 
 export type BoardEventListener = (ev: BoardEvent) => void;
 
@@ -77,7 +77,7 @@ const STALE_SNAPSHOT_RACE_MAX_GAP = 32;
  * Pure reducer for board state updates.
  * Guards against stale REST snapshots with older sequence numbers overwriting
  * newer live event state — unless the stream is down or seq clearly rewound
- * (honr restart), in which case REST wins.
+ * (sandboard restart), in which case REST wins.
  */
 export function reduce(s: BoardState, a: Action): BoardState {
   switch (a.type) {
@@ -237,8 +237,8 @@ export function useBoard() {
     };
 
     const attachWebSocket = () => {
-      // Prefer API host in Vite dev — see `honrWsUrl` (Tailscale→Vite WSS stalls).
-      const ws = new WebSocket(honrWsUrl("/api/ws"));
+      // Prefer API host in Vite dev — see `sandboardWsUrl` (Tailscale→Vite WSS stalls).
+      const ws = new WebSocket(sandboardWsUrl("/api/ws"));
       wsRef.current = ws;
       socket = ws;
 
@@ -335,7 +335,7 @@ export function useBoard() {
     ...state,
     error,
     refresh: () => {
-      // Mark disconnected first so a seq-rewound snapshot (honr restart) is
+      // Mark disconnected first so a seq-rewound snapshot (sandboard restart) is
       // applied instead of discarded; then remount the WS/SSE effect.
       dispatch({ type: "connected", ok: false });
       setStreamGen((g) => g + 1);

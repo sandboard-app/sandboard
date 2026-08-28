@@ -1618,7 +1618,7 @@ pub struct SandboxProfilesOut {
     pub profiles: Vec<SandboxProfile>,
     pub default_sandbox_profile_id: Option<String>,
     pub cockpit_sandbox_profile_id: Option<String>,
-    /// Prefill for Settings → Create (minimal policy, no honr-specific egress).
+    /// Prefill for Settings → Create (minimal policy, no sandboard-specific egress).
     pub create_defaults: SandboxProfileCreateDefaults,
 }
 
@@ -1946,7 +1946,7 @@ pub struct OpsMcpCredOut {
     pub injected: bool,
 }
 
-/// Mint `honr-cockpit` tokens for the logged-in user and inject MCP config into
+/// Mint `sandboard-cockpit` tokens for the logged-in user and inject MCP config into
 /// the Board-named cockpit sandbox. Does not return refresh/access to the browser.
 async fn provision_cockpit_mcp_cred(
     AxState(b): AxState<SharedBoard>,
@@ -2281,7 +2281,7 @@ mod tests {
     #[tokio::test]
     async fn item_detail_and_snapshot_show_task_repo_when_set() {
         let path = std::env::temp_dir().join(format!(
-            "honr-test-api-task-repo-{}",
+            "sandboard-test-api-task-repo-{}",
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
@@ -2476,7 +2476,7 @@ mod tests {
     #[tokio::test]
     async fn unarchive_scope_restores_retired_project() {
         let path = std::env::temp_dir().join(format!(
-            "honr-test-api-unarchive-ok-{}",
+            "sandboard-test-api-unarchive-ok-{}",
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
@@ -2524,7 +2524,7 @@ mod tests {
     #[tokio::test]
     async fn unarchive_scope_rejects_non_retired() {
         let path = std::env::temp_dir().join(format!(
-            "honr-test-api-unarchive-reject-{}",
+            "sandboard-test-api-unarchive-reject-{}",
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
@@ -2566,7 +2566,7 @@ mod tests {
         let b: SharedBoard = std::sync::Arc::new(crate::store::Board::new(
             crate::schema::Schema::default(),
             std::env::temp_dir().join(format!(
-                "honr-test-create-task-repo-{}-{}.json",
+                "sandboard-test-create-task-repo-{}-{}.json",
                 std::process::id(),
                 std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)
@@ -2669,7 +2669,7 @@ mod tests {
         let b: SharedBoard = std::sync::Arc::new(crate::store::Board::new(
             crate::schema::Schema::default(),
             std::env::temp_dir().join(format!(
-                "honr-test-create-task-nest-{}-{}.json",
+                "sandboard-test-create-task-nest-{}-{}.json",
                 std::process::id(),
                 std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)
@@ -2678,7 +2678,7 @@ mod tests {
             )),
         ));
         let project = b
-            .create_project("P", "why", "honr-app/honr", true, None)
+            .create_project("P", "why", "sandboard-app/sandboard", true, None)
             .expect("project");
         let Ok(Json(blocker)) = create_item(
             AxState(b.clone()),
@@ -2783,7 +2783,7 @@ mod tests {
     async fn a_finished_card_carries_its_pr_and_sandbox_to_the_ui() {
         let b: SharedBoard = std::sync::Arc::new(crate::store::Board::new(
             crate::schema::Schema::default(),
-            std::env::temp_dir().join("honr-test-nowrite.json"),
+            std::env::temp_dir().join("sandboard-test-nowrite.json"),
         ));
         let id = b
             .create(
@@ -2797,16 +2797,16 @@ mod tests {
             )
             .expect("create")
             .id;
-        b.set_environment(id, Some("honr-card-8-a1".into()));
-        b.set_pr_url(id, Some("https://github.com/honr-app/honr/pull/1".into()));
+        b.set_environment(id, Some("sandboard-card-8-a1".into()));
+        b.set_pr_url(id, Some("https://github.com/sandboard-app/sandboard/pull/1".into()));
 
         let Json(snap) = board(AxState(b.clone())).await;
         let on_the_card = serde_json::to_value(&snap).unwrap();
         assert_eq!(
             on_the_card["items"][0]["pull_requests"][0]["url"],
-            "https://github.com/honr-app/honr/pull/1"
+            "https://github.com/sandboard-app/sandboard/pull/1"
         );
-        assert_eq!(on_the_card["items"][0]["environment"], "honr-card-8-a1");
+        assert_eq!(on_the_card["items"][0]["environment"], "sandboard-card-8-a1");
 
         let Ok(Json(detail)) = item_detail(AxState(b), Path(id)).await else {
             panic!("no detail for the card we just created");
@@ -2814,9 +2814,9 @@ mod tests {
         let in_the_drawer = serde_json::to_value(&detail).unwrap();
         assert_eq!(
             in_the_drawer["pull_requests"][0]["url"],
-            "https://github.com/honr-app/honr/pull/1"
+            "https://github.com/sandboard-app/sandboard/pull/1"
         );
-        assert_eq!(in_the_drawer["environment"], "honr-card-8-a1");
+        assert_eq!(in_the_drawer["environment"], "sandboard-card-8-a1");
     }
 
     #[tokio::test]
@@ -2833,7 +2833,7 @@ mod tests {
     async fn item_detail_and_board_snapshot_include_resolved_blockers() {
         let b: SharedBoard = std::sync::Arc::new(crate::store::Board::new(
             crate::schema::Schema::default(),
-            std::env::temp_dir().join("honr-test-blockers.json"),
+            std::env::temp_dir().join("sandboard-test-blockers.json"),
         ));
         let project = b
             .create(
@@ -2914,7 +2914,7 @@ mod tests {
 
         let b: SharedBoard = std::sync::Arc::new(crate::store::Board::new(
             crate::schema::Schema::default(),
-            std::env::temp_dir().join("honr-test-webhook.json"),
+            std::env::temp_dir().join("sandboard-test-webhook.json"),
         ));
 
         let mut rx = b.subscribe();
@@ -3064,7 +3064,7 @@ mod tests {
 
         let b: SharedBoard = std::sync::Arc::new(crate::store::Board::new(
             crate::schema::Schema::default(),
-            std::env::temp_dir().join("honr-test-route.json"),
+            std::env::temp_dir().join("sandboard-test-route.json"),
         ));
 
         let mut app = Router::new().nest("/api", routes()).with_state(b.clone());
@@ -3171,11 +3171,11 @@ mod tests {
         let b: SharedBoard = std::sync::Arc::new(crate::store::Board::new(
             crate::schema::Schema::default(),
             std::env::temp_dir().join(format!(
-                "honr-test-webhook-steer-same-{}.json",
+                "sandboard-test-webhook-steer-same-{}.json",
                 std::process::id()
             )),
         ));
-        let pr_url = "https://github.com/honr-app/honr/pull/5501";
+        let pr_url = "https://github.com/sandboard-app/sandboard/pull/5501";
         let id = running_card_with_pr(&b, pr_url);
 
         let push_payload = serde_json::json!({
@@ -3183,7 +3183,7 @@ mod tests {
             "after": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
             "repository": {
                 "default_branch": "main",
-                "full_name": "honr-app/honr"
+                "full_name": "sandboard-app/sandboard"
             }
         });
 
@@ -3221,7 +3221,7 @@ mod tests {
         let b: SharedBoard = std::sync::Arc::new(crate::store::Board::new(
             crate::schema::Schema::default(),
             std::env::temp_dir().join(format!(
-                "honr-test-webhook-steer-skip-{}.json",
+                "sandboard-test-webhook-steer-skip-{}.json",
                 std::process::id()
             )),
         ));
@@ -3233,7 +3233,7 @@ mod tests {
             "after": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
             "repository": {
                 "default_branch": "main",
-                "full_name": "honr-app/honr"
+                "full_name": "sandboard-app/sandboard"
             }
         });
 
@@ -3263,13 +3263,13 @@ mod tests {
         let b: SharedBoard = std::sync::Arc::new(crate::store::Board::new(
             crate::schema::Schema::default(),
             std::env::temp_dir().join(format!(
-                "honr-test-webhook-complete-{}.json",
+                "sandboard-test-webhook-complete-{}.json",
                 std::process::id()
             )),
         ));
         let mut rx = b.subscribe();
 
-        let pr_url = "https://github.com/honr-app/honr/pull/4242";
+        let pr_url = "https://github.com/sandboard-app/sandboard/pull/4242";
         let id = review_card_with_pr(&b, pr_url);
         // Drain create/transition noise.
         while rx.try_recv().is_ok() {}
@@ -3285,7 +3285,7 @@ mod tests {
             },
             "repository": {
                 "default_branch": "main",
-                "full_name": "honr-app/honr"
+                "full_name": "sandboard-app/sandboard"
             }
         });
 
@@ -3321,11 +3321,11 @@ mod tests {
         let b: SharedBoard = std::sync::Arc::new(crate::store::Board::new(
             crate::schema::Schema::default(),
             std::env::temp_dir().join(format!(
-                "honr-test-webhook-unmerged-{}.json",
+                "sandboard-test-webhook-unmerged-{}.json",
                 std::process::id()
             )),
         ));
-        let pr_url = "https://github.com/honr-app/honr/pull/4243";
+        let pr_url = "https://github.com/sandboard-app/sandboard/pull/4243";
         let id = review_card_with_pr(&b, pr_url);
 
         let pr_payload = serde_json::json!({
@@ -3338,7 +3338,7 @@ mod tests {
             },
             "repository": {
                 "default_branch": "main",
-                "full_name": "honr-app/honr"
+                "full_name": "sandboard-app/sandboard"
             }
         });
 
@@ -3364,7 +3364,7 @@ mod tests {
         let b: SharedBoard = std::sync::Arc::new(crate::store::Board::new(
             crate::schema::Schema::default(),
             std::env::temp_dir().join(format!(
-                "honr-test-webhook-nomatch-{}.json",
+                "sandboard-test-webhook-nomatch-{}.json",
                 std::process::id()
             )),
         ));
@@ -3374,14 +3374,14 @@ mod tests {
             "action": "closed",
             "pull_request": {
                 "merged": true,
-                "html_url": "https://github.com/honr-app/honr/pull/99999",
+                "html_url": "https://github.com/sandboard-app/sandboard/pull/99999",
                 "number": 99999,
                 "merge_commit_sha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
                 "base": { "ref": "main" }
             },
             "repository": {
                 "default_branch": "main",
-                "full_name": "honr-app/honr"
+                "full_name": "sandboard-app/sandboard"
             }
         });
 
@@ -3412,11 +3412,11 @@ mod tests {
         let b: SharedBoard = std::sync::Arc::new(crate::store::Board::new(
             crate::schema::Schema::default(),
             std::env::temp_dir().join(format!(
-                "honr-test-webhook-idempotent-{}.json",
+                "sandboard-test-webhook-idempotent-{}.json",
                 std::process::id()
             )),
         ));
-        let pr_url = "https://github.com/honr-app/honr/pull/4244";
+        let pr_url = "https://github.com/sandboard-app/sandboard/pull/4244";
         let id = review_card_with_pr(&b, pr_url);
 
         let pr_payload = serde_json::json!({
@@ -3429,7 +3429,7 @@ mod tests {
             },
             "repository": {
                 "default_branch": "main",
-                "full_name": "honr-app/honr"
+                "full_name": "sandboard-app/sandboard"
             }
         });
 
@@ -3468,7 +3468,7 @@ mod tests {
         let b: SharedBoard = std::sync::Arc::new(crate::store::Board::new(
             crate::schema::Schema::default(),
             std::env::temp_dir().join(format!(
-                "honr-test-webhook-rebase-{}.json",
+                "sandboard-test-webhook-rebase-{}.json",
                 std::process::id()
             )),
         ));
@@ -3508,8 +3508,8 @@ mod tests {
             )
             .unwrap();
 
-        let pr1_url = "https://github.com/honr-app/honr/pull/5001";
-        let pr2_url = "https://github.com/honr-app/honr/pull/5002";
+        let pr1_url = "https://github.com/sandboard-app/sandboard/pull/5001";
+        let pr2_url = "https://github.com/sandboard-app/sandboard/pull/5002";
 
         for (id, url) in [(t1.id, pr1_url), (t2.id, pr2_url)] {
             let _ = b.transition(id, State::Shaping, "human", None);
@@ -3530,7 +3530,7 @@ mod tests {
             },
             "repository": {
                 "default_branch": "main",
-                "full_name": "honr-app/honr"
+                "full_name": "sandboard-app/sandboard"
             }
         });
 
@@ -3582,7 +3582,7 @@ mod tests {
             },
             "repository": {
                 "default_branch": "main",
-                "full_name": "honr-app/honr"
+                "full_name": "sandboard-app/sandboard"
             }
         })
     }
@@ -3594,11 +3594,11 @@ mod tests {
         let b: SharedBoard = std::sync::Arc::new(crate::store::Board::new(
             crate::schema::Schema::default(),
             std::env::temp_dir().join(format!(
-                "honr-test-webhook-review-cr-{}.json",
+                "sandboard-test-webhook-review-cr-{}.json",
                 std::process::id()
             )),
         ));
-        let pr_url = "https://github.com/honr-app/honr/pull/4243";
+        let pr_url = "https://github.com/sandboard-app/sandboard/pull/4243";
         let id = review_card_with_pr(&b, pr_url);
 
         let mut headers = HeaderMap::new();
@@ -3646,11 +3646,11 @@ mod tests {
         let b: SharedBoard = std::sync::Arc::new(crate::store::Board::new(
             crate::schema::Schema::default(),
             std::env::temp_dir().join(format!(
-                "honr-test-webhook-review-comment-{}.json",
+                "sandboard-test-webhook-review-comment-{}.json",
                 std::process::id()
             )),
         ));
-        let pr_url = "https://github.com/honr-app/honr/pull/4244";
+        let pr_url = "https://github.com/sandboard-app/sandboard/pull/4244";
         let id = review_card_with_pr(&b, pr_url);
 
         let mut headers = HeaderMap::new();
@@ -3689,11 +3689,11 @@ mod tests {
         let b: SharedBoard = std::sync::Arc::new(crate::store::Board::new(
             crate::schema::Schema::default(),
             std::env::temp_dir().join(format!(
-                "honr-test-webhook-review-approved-{}.json",
+                "sandboard-test-webhook-review-approved-{}.json",
                 std::process::id()
             )),
         ));
-        let pr_url = "https://github.com/honr-app/honr/pull/4245";
+        let pr_url = "https://github.com/sandboard-app/sandboard/pull/4245";
         let id = review_card_with_pr(&b, pr_url);
         let notes_before = b.get(id).unwrap().notes.len();
 
@@ -3731,11 +3731,11 @@ mod tests {
         let b: SharedBoard = std::sync::Arc::new(crate::store::Board::new(
             crate::schema::Schema::default(),
             std::env::temp_dir().join(format!(
-                "honr-test-webhook-review-malformed-{}.json",
+                "sandboard-test-webhook-review-malformed-{}.json",
                 std::process::id()
             )),
         ));
-        let pr_url = "https://github.com/honr-app/honr/pull/4246";
+        let pr_url = "https://github.com/sandboard-app/sandboard/pull/4246";
         let id = review_card_with_pr(&b, pr_url);
 
         let mut headers = HeaderMap::new();
@@ -3771,7 +3771,7 @@ mod tests {
                     "submitted",
                     "changes_requested",
                     "body",
-                    "https://github.com/honr-app/honr/pull/99999",
+                    "https://github.com/sandboard-app/sandboard/pull/99999",
                     99999,
                 ))
                 .unwrap(),
@@ -3796,7 +3796,7 @@ mod tests {
                         "number": 4246,
                         "merged": false
                     },
-                    "repository": { "full_name": "honr-app/honr" }
+                    "repository": { "full_name": "sandboard-app/sandboard" }
                 }))
                 .unwrap(),
             ),
@@ -3812,7 +3812,7 @@ mod tests {
         std::sync::Arc::new(crate::store::Board::new(
             crate::schema::Schema::default(),
             std::env::temp_dir().join(format!(
-                "honr-test-api-sbx-{}.json",
+                "sandboard-test-api-sbx-{}.json",
                 std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)
                     .unwrap()
@@ -3860,7 +3860,7 @@ mod tests {
             Json(UpsertSandboxProfileReq {
                 id: Some("default".into()),
                 name: "Default".into(),
-                image: "honr-sandbox:latest".into(),
+                image: "sandboard-sandbox:latest".into(),
                 policy_id: "api-test".into(),
                 cpu: Some("2".into()),
                 memory: Some("4Gi".into()),
@@ -3873,7 +3873,7 @@ mod tests {
             panic!("create default profile");
         };
         assert_eq!(created.id, "default");
-        assert_eq!(created.image, "honr-sandbox:latest");
+        assert_eq!(created.image, "sandboard-sandbox:latest");
         assert_eq!(created.policy_id, "api-test");
 
         let Ok(Json(heavy)) = upsert_sandbox_profile(
@@ -3881,7 +3881,7 @@ mod tests {
             Json(UpsertSandboxProfileReq {
                 id: Some("heavy".into()),
                 name: "Heavy".into(),
-                image: "honr-sandbox:heavy".into(),
+                image: "sandboard-sandbox:heavy".into(),
                 policy_id: "api-test".into(),
                 cpu: Some("8".into()),
                 memory: Some("16Gi".into()),
@@ -3901,7 +3901,7 @@ mod tests {
             Json(UpsertSandboxProfileReq {
                 id: Some("heavy".into()),
                 name: "Heavy+".into(),
-                image: "honr-sandbox:heavy2".into(),
+                image: "sandboard-sandbox:heavy2".into(),
                 policy_id: "api-test".into(),
                 cpu: Some("8".into()),
                 memory: Some("32Gi".into()),
@@ -3943,14 +3943,14 @@ mod tests {
         else {
             panic!("get heavy");
         };
-        assert_eq!(got.image, "honr-sandbox:heavy2");
+        assert_eq!(got.image, "sandboard-sandbox:heavy2");
 
         let Ok(Json(with_env)) = upsert_sandbox_profile(
             AxState(b.clone()),
             Json(UpsertSandboxProfileReq {
                 id: Some("env-notes".into()),
                 name: "Env notes".into(),
-                image: "honr-sandbox:env".into(),
+                image: "sandboard-sandbox:env".into(),
                 policy_id: "api-test".into(),
                 cpu: None,
                 memory: None,
@@ -4161,7 +4161,7 @@ mod tests {
     #[tokio::test]
     async fn webhook_poll_get_put_clamps_interval() {
         let path = std::env::temp_dir().join(format!(
-            "honr-test-api-whpoll-{}.json",
+            "sandboard-test-api-whpoll-{}.json",
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
@@ -4195,7 +4195,7 @@ mod tests {
     #[tokio::test]
     async fn workspace_get_put_persists_forge_only() {
         let path = std::env::temp_dir().join(format!(
-            "honr-test-api-ws-{}.json",
+            "sandboard-test-api-ws-{}.json",
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
@@ -4237,7 +4237,7 @@ mod tests {
     #[tokio::test]
     async fn openshell_status_not_configured_without_endpoint() {
         let path = std::env::temp_dir().join(format!(
-            "honr-test-api-os-miss-{}.json",
+            "sandboard-test-api-os-miss-{}.json",
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
@@ -4260,7 +4260,7 @@ mod tests {
     #[tokio::test]
     async fn openshell_status_healthy_when_injected_mock_ok() {
         let path = std::env::temp_dir().join(format!(
-            "honr-test-api-os-ok-{}.json",
+            "sandboard-test-api-os-ok-{}.json",
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
@@ -4284,7 +4284,7 @@ mod tests {
     #[tokio::test]
     async fn openshell_status_unhealthy_when_injected_mock_fails() {
         let path = std::env::temp_dir().join(format!(
-            "honr-test-api-os-bad-{}.json",
+            "sandboard-test-api-os-bad-{}.json",
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
@@ -4308,7 +4308,7 @@ mod tests {
     #[tokio::test]
     async fn openshell_put_seals_mtls_and_never_echoes_pems() {
         let dir = std::env::temp_dir().join(format!(
-            "honr-test-api-os-mtls-{}",
+            "sandboard-test-api-os-mtls-{}",
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
@@ -4316,7 +4316,7 @@ mod tests {
         ));
         let _ = std::fs::create_dir_all(&dir);
         let key_path = dir.join("master.key");
-        // Share the secrets test lock — HONR_MASTER_KEY* is process-global.
+        // Share the secrets test lock — SANDBOARD_MASTER_KEY* is process-global.
         let _env = crate::secrets::master_key_env::Guard::with_key_path(&key_path);
 
         let path = dir.join("board.json");
@@ -4362,7 +4362,7 @@ mod tests {
     #[tokio::test]
     async fn github_app_put_seals_and_never_echoes_secrets() {
         let dir = std::env::temp_dir().join(format!(
-            "honr-test-api-gh-app-{}",
+            "sandboard-test-api-gh-app-{}",
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
@@ -4447,7 +4447,7 @@ mod tests {
     #[test]
     fn github_repo_access_view_groups_repos_under_installations() {
         let path = std::env::temp_dir().join(format!(
-            "honr-test-api-repo-access-{}.json",
+            "sandboard-test-api-repo-access-{}.json",
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
@@ -4499,7 +4499,7 @@ mod tests {
     #[tokio::test]
     async fn openshell_providers_create_list_never_echo_secrets_and_sync_delete() {
         let dir = std::env::temp_dir().join(format!(
-            "honr-test-api-os-providers-{}",
+            "sandboard-test-api-os-providers-{}",
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
@@ -4567,7 +4567,7 @@ mod tests {
     #[tokio::test]
     async fn agent_runtime_get_put_persists_and_overlays_effective_agents() {
         let path = std::env::temp_dir().join(format!(
-            "honr-test-api-agent-rt-{}.json",
+            "sandboard-test-api-agent-rt-{}.json",
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
@@ -4612,7 +4612,7 @@ mod tests {
         let hex = "cd".repeat(32);
         let env = crate::secrets::master_key_env::Guard::with_hex_key(&hex);
         let path = std::env::temp_dir().join(format!(
-            "honr-test-api-{label}-{}.json",
+            "sandboard-test-api-{label}-{}.json",
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
@@ -4642,7 +4642,7 @@ mod tests {
             },
         )
         .expect("mint session");
-        CookieJar::new().add(Cookie::new("honr_session", value))
+        CookieJar::new().add(Cookie::new("sandboard_session", value))
     }
 
     #[tokio::test]
@@ -4676,7 +4676,7 @@ mod tests {
     #[tokio::test]
     async fn mcp_cred_refuses_when_parked() {
         let (b, _env) = board_with_admin_auth("mcp-cred-parked", None);
-        b.create_cockpit_session(Some("honr-cockpit".into()), None)
+        b.create_cockpit_session(Some("sandboard-cockpit".into()), None)
             .expect("create");
         b.park_cockpit_session().expect("park");
         let err = provision_cockpit_mcp_cred(AxState(b.clone()), admin_jar(&b))
@@ -4705,7 +4705,7 @@ mod tests {
             std::time::Duration::from_secs(5),
         );
         let (b, _env) = board_with_admin_auth("mcp-cred-ok", Some(os));
-        b.create_cockpit_session(Some("honr-cockpit".into()), None)
+        b.create_cockpit_session(Some("sandboard-cockpit".into()), None)
             .expect("create");
 
         let Json(out) = provision_cockpit_mcp_cred(AxState(b.clone()), admin_jar(&b))
@@ -4713,7 +4713,7 @@ mod tests {
             .expect("provision");
         assert!(out.ok);
         assert!(out.injected);
-        assert_eq!(out.environment, "honr-cockpit");
+        assert_eq!(out.environment, "sandboard-cockpit");
         assert_eq!(out.client_id, crate::mcp_oauth::COCKPIT_CLIENT_ID);
         assert_eq!(out.sub, "admin");
         assert!(!out.resource.is_empty());
@@ -4727,7 +4727,7 @@ mod tests {
         use std::sync::Arc;
 
         let dir = std::env::temp_dir().join(format!(
-            "honr-test-agy-sync-{}",
+            "sandboard-test-agy-sync-{}",
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
@@ -4849,15 +4849,15 @@ mod tests {
     }
 
     /// Operator helper (not a unit test): seal a Vertex credential into board
-    /// `vertex` and apply to the gateway. Stop the running honr process first so
+    /// `vertex` and apply to the gateway. Stop the running sandboard process first so
     /// flush is not overwritten by in-memory state.
     ///
-    /// The credential file is named explicitly. honr does not guess at host
+    /// The credential file is named explicitly. sandboard does not guess at host
     /// config locations, and a helper that reaches into `~/.config` teaches the
     /// habit back into the product.
     ///
     /// ```bash
-    /// HONR_TEST_VERTEX_ADC=~/.config/gcloud/application_default_credentials.json \
+    /// SANDBOARD_TEST_VERTEX_ADC=~/.config/gcloud/application_default_credentials.json \
     ///   cargo test --offline upsert_live_vertex_provider -- --ignored --nocapture
     /// ```
     #[tokio::test]
@@ -4869,8 +4869,8 @@ mod tests {
         use crate::store::Board;
         use std::sync::Arc;
 
-        let adc_path = std::env::var("HONR_TEST_VERTEX_ADC")
-            .expect("set HONR_TEST_VERTEX_ADC to a credential JSON path");
+        let adc_path = std::env::var("SANDBOARD_TEST_VERTEX_ADC")
+            .expect("set SANDBOARD_TEST_VERTEX_ADC to a credential JSON path");
         let adc: serde_json::Value =
             serde_json::from_str(&std::fs::read_to_string(&adc_path).expect("read ADC"))
                 .expect("parse ADC");
@@ -4923,7 +4923,7 @@ mod tests {
                 .expect("open board db"),
         );
         let board: SharedBoard = Arc::new(
-            Board::load_with_store(schema, std::path::PathBuf::from("honr.json"), store)
+            Board::load_with_store(schema, std::path::PathBuf::from("sandboard.json"), store)
                 .await
                 .expect("load board"),
         );

@@ -1,7 +1,7 @@
 /target
-/honr.json
-/honr.json.tmp
-.honr/
+/sandboard.json
+/sandboard.json.tmp
+.sandboard/
 node_modules
 web/dist
 .DS_Store
@@ -11,9 +11,9 @@ web/tsconfig.tsbuildinfo
 # for mdBook; the published book is the only place they are meant to live.
 web/shots
 docs/images
-.honr
+.sandboard
 
-# Local Dolt / sqlite artifacts (not board state under .honr/)
+# Local Dolt / sqlite artifacts (not board state under .sandboard/)
 .dolt/
 *.db
 
@@ -22,7 +22,7 @@ sandbox/agy.tar.gz
 sandbox/antigravity
 
 # Local board backups
-honr.json.pre-flat-backup
+sandboard.json.pre-flat-backup
 
 # mdBook Mermaid browser assets — fetched by `mdbook-mermaid install` (make docs / CI).
 mermaid.min.js

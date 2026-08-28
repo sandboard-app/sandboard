@@ -13,13 +13,13 @@ to build the UI.
 ## 1. Run it
 
 ```bash
-git clone https://github.com/honr-app/honr.git
-cd honr
+git clone https://github.com/sandboard-app/sandboard.git
+cd sandboard
 cargo run
 ```
 
 That serves the API, SSE, MCP, and the built UI. Bind port defaults to `8080`
-(`HONR_PORT` overrides). Open the board at whatever Host you use — UI copy and
+(`SANDBOARD_PORT` overrides). Open the board at whatever Host you use — UI copy and
 OAuth redirect URIs come from that origin, not a hardcoded loopback URL.
 
 If `web/dist` does not exist yet, build the UI once:
@@ -40,7 +40,7 @@ Pick any username and password; it is stored locally, in your board database.
 The board starts empty. Create a **Project**, give it an intent, and point it at
 a repository (`owner/name` — the repo the planning agent will clone).
 
-honr creates an **Initial plan** Task under it automatically. You now have a
+sandboard creates an **Initial plan** Task under it automatically. You now have a
 Project, a Task, and a board that looks like the one in the [Tour](tour.md) —
 minus anything running, because nothing has been dispatched yet.
 
@@ -59,13 +59,13 @@ re-running Initial plan. Name the clone target in intent/DoD. See
 ## 4. Connect a chat client (optional)
 
 You can drive the board from Cursor or Claude Code over MCP instead of the UI.
-honr must already be listening.
+sandboard must already be listening.
 
 For an agent bringing up a **fresh** board (admin, OpenShell, providers, sandbox
 spec, first Project), point it at the public bootstrap guide first:
 
 ```bash
-curl -sS "$HONR_URL/llms.txt"   # HONR_URL = the origin you open the board on
+curl -sS "$SANDBOARD_URL/llms.txt"   # SANDBOARD_URL = the origin you open the board on
 ```
 
 `GET /llms.txt` needs no auth. Source lives at [`llms.txt`](../llms.txt) in the
@@ -81,27 +81,27 @@ supervisor. The Help / Board empty guide shows `{origin}/mcp` from
 ```json
 {
   "mcpServers": {
-    "honr": {
+    "sandboard": {
       "type": "http",
       "url": "http://YOUR_HOST:PORT/mcp",
-      "auth": { "CLIENT_ID": "honr-cursor", "scopes": ["mcp"] }
+      "auth": { "CLIENT_ID": "sandboard-cursor", "scopes": ["mcp"] }
     }
   }
 }
 ```
 
 ```bash
-agent mcp login honr
+agent mcp login sandboard
 ```
 
 **Claude Code:**
 
 ```bash
-claude mcp add --transport http honr "$HONR_URL/mcp"
+claude mcp add --transport http sandboard "$SANDBOARD_URL/mcp"
 ```
 
 Either way a browser opens for login and consent, using the same account you
-just created. Tokens survive a honr restart, so you will not be logging in
+just created. Tokens survive a sandboard restart, so you will not be logging in
 repeatedly.
 
 If the tools list stays empty, reload the client.

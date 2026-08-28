@@ -1,13 +1,13 @@
 # Configuration
 
-honr stacks configuration in layers. Lower layers are operator concerns; upper
+sandboard stacks configuration in layers. Lower layers are operator concerns; upper
 layers are what agents read at claim time. See also
 [Workflow](workflow.md#standing-instructions-and-quality-gates) and
 [Concepts](concepts.md#configuration-layers).
 
 | Layer | Who sets it | Role |
 |---|---|---|
-| **Process boot** | Host / deploy | Database URL (`HONR_DATABASE_URL` else `sqlite:honr.db`). Hierarchy is compile-time Project + Task. |
+| **Process boot** | Host / deploy | Database URL (`SANDBOARD_DATABASE_URL` else `sqlite:sandboard.db`). Hierarchy is compile-time Project + Task. |
 | **Board Settings** | Operator | Policies, sandbox specs, Agent runtime (engine, concurrency, timeouts, sweep interval, **standing prompt**), OpenShell gateway/providers (incl. shipped `github-app`), Forge, and GitHub App repo access. |
 | **Project fields** | Operator | Default clone repo (`clone_repo`), optional sandbox spec override (`sandbox_profile_id`). Seeded into Project intent and the Initial plan. |
 | **`project_prompt`** | Operator | Optional Project-only standing extras. Board-wide policy lives in Agent runtime standing prompt. |
@@ -21,7 +21,7 @@ optional `project_prompt`, then card intent/DoD.
 **Quality gates** — test/lint commands agents should run before publish — belong
 in the board standing prompt when board-wide, or in `project_prompt` /
 card DoD when narrower. Name the commands explicitly (`cargo test`, `npm test`,
-…). honr does **not** assume `cargo` or any other toolchain unless those
+…). sandboard does **not** assume `cargo` or any other toolchain unless those
 instructions name it.
 
 ## Board database
@@ -31,40 +31,40 @@ optional, for a shared server.
 
 | Source | Example |
 |---|---|
-| Compiled default | `sqlite:honr.db` |
-| Environment override | `HONR_DATABASE_URL=postgres://honr:honr@127.0.0.1:5432/honr` |
+| Compiled default | `sqlite:sandboard.db` |
+| Environment override | `SANDBOARD_DATABASE_URL=postgres://sandboard:sandboard@127.0.0.1:5432/sandboard` |
 
 Accepted forms:
 
-- SQLite — `sqlite:honr.db`, `sqlite://…`, `sqlite::memory:` (tests)
+- SQLite — `sqlite:sandboard.db`, `sqlite://…`, `sqlite::memory:` (tests)
 - Postgres — `postgres://…` or `postgresql://…`
 
-On boot honr opens the URL, applies versioned migrations from `migrations/`, and
+On boot sandboard opens the URL, applies versioned migrations from `migrations/`, and
 restores the board from rows.
 
 The database URL cannot live in board Settings — Settings persist *inside* the
 database.
 
-**One-shot JSON import:** if the database is empty and `honr.json` exists in the
-working directory, honr imports it once and leaves the JSON alone — archive or
+**One-shot JSON import:** if the database is empty and `sandboard.json` exists in the
+working directory, sandboard imports it once and leaves the JSON alone — archive or
 delete it yourself. Later boots use the database only.
 
 Offline `cargo test` always uses SQLite. To exercise Postgres migrations
-locally, point `HONR_TEST_DATABASE_URL` at a reachable Postgres URL.
+locally, point `SANDBOARD_TEST_DATABASE_URL` at a reachable Postgres URL.
 
 ## Environment
 
 | Variable | Effect |
 |---|---|
-| `HONR_PORT` | Listen port (default 8080) |
-| `HONR_BIND_ADDR` | Bind host (default `127.0.0.1`; containers use `0.0.0.0`) |
-| `HONR_DATABASE_URL` | Board database URL (default `sqlite:honr.db`) |
-| `HONR_TEST_DATABASE_URL` | Postgres URL for migration tests |
+| `SANDBOARD_PORT` | Listen port (default 8080) |
+| `SANDBOARD_BIND_ADDR` | Bind host (default `127.0.0.1`; containers use `0.0.0.0`) |
+| `SANDBOARD_DATABASE_URL` | Board database URL (default `sqlite:sandboard.db`) |
+| `SANDBOARD_TEST_DATABASE_URL` | Postgres URL for migration tests |
 
-Cockpit's shipped `honr` MCP entry is stdio over a local Unix socket
+Cockpit's shipped `sandboard` MCP entry is stdio over a local Unix socket
 (`socat`, see [Cockpit](cockpit.md#how-the-mcp-relay-works)) — no URL, no env var.
 
-One host secret file: `~/.config/honr/master.key`, which seals credentials
+One host secret file: `~/.config/sandboard/master.key`, which seals credentials
 stored on the board.
 
 ## Hierarchy
@@ -98,7 +98,7 @@ it points agents at the board / Project standing text and the card DoD.
 **Settings → Agent runtime** (REST: `/api/agent-runtime`): default engine,
 concurrency, agent timeout, max attempts, sweep interval, and **standing
 prompt** (optional board-wide agent policy; empty by default). Card branches /
-sandboxes use a fixed `honr` stem (`honr/card-*`, `honr-cockpit`) — not a
+sandboxes use a fixed `sandboard` stem (`sandboard/card-*`, `sandboard-cockpit`) — not a
 Settings knob. OpenShell gateway + a sandbox spec are the practical readiness
 gates before dispatch does anything useful.
 
@@ -124,14 +124,14 @@ edited in **Settings → OpenShell → Sandbox specs** (REST:
 allow-list YAML under Policies, not on the spec.
 
 Four specs come seeded — `sandbox-cursor`, `sandbox-agy`, `sandbox-claude`,
-`sandbox-opencode` — one per split `quay.io/honr-app/sandbox-<engine>` image
+`sandbox-opencode` — one per split `quay.io/sandboard-app/sandbox-<engine>` image
 ([Sandbox](sandbox.md#image-and-offline-gates)), each already wired to a
-matching minimal Cockpit policy with honr MCP attached. Editing a seeded row
+matching minimal Cockpit policy with sandboard MCP attached. Editing a seeded row
 sticks; the seed only inserts what's missing.
 
 ### Model
 
-An optional **model** on the spec names the model honr passes to agent CLIs
+An optional **model** on the spec names the model sandboard passes to agent CLIs
 that accept a `--model` flag on launch (`agy`, `cursor` / `agent`). Leave it
 unset to inherit the engine default — for `agy`, `gemini-3.6-flash-high`
 (`DEFAULT_SEAT_MODEL`); for `cursor`, the account default for your API key.
@@ -148,12 +148,12 @@ the same spec → default chain (no card).
 **`claude` and `opencode` do not read spec model.** Those engines reach models
 through OpenShell's `inference.local` router; which model they get is whatever
 you configured on the gateway with `openshell inference set` (see
-[Sandbox](sandbox.md#how-credentials-reach-the-agent)). honr does not automate
+[Sandbox](sandbox.md#how-credentials-reach-the-agent)). sandboard does not automate
 that route — set it once per gateway as today.
 
 ### Environment (`env`)
 
-Optional string map on the spec. At sandbox create (card and Cockpit), honr
+Optional string map on the spec. At sandbox create (card and Cockpit), sandboard
 builds env as `agent_env(engine)` then overlays the resolved profile's `env` —
 **profile wins on key clash**. Spec `env` is **non-secret by contract**: put
 API URLs, tool paths, and similar seat wiring here; put credentials on

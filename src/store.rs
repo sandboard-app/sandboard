@@ -597,7 +597,7 @@ impl Board {
         (healed, renamed)
     }
 
-    /// Load a previously persisted board from `honr.json`, or start empty.
+    /// Load a previously persisted board from `sandboard.json`, or start empty.
     ///
     /// Prefer [`Self::load_with_store`] in production — JSON is the one-shot
     /// import source once a `BoardStore` is attached.
@@ -653,8 +653,8 @@ impl Board {
             tracing::info!("seeded shipped per-engine sandbox profiles");
             board.flush();
         }
-        if board.ensure_cockpit_honr_mcp_attach() {
-            tracing::info!("attached shipped honr MCP to Cockpit sandbox profile");
+        if board.ensure_cockpit_sandboard_mcp_attach() {
+            tracing::info!("attached shipped sandboard MCP to Cockpit sandbox profile");
             board.flush();
         }
         if board.migrate_github_app_provider_name() {
@@ -743,8 +743,8 @@ impl Board {
             tracing::info!("seeded shipped per-engine sandbox profiles");
             board.flush();
         }
-        if board.ensure_cockpit_honr_mcp_attach() {
-            tracing::info!("attached shipped honr MCP to Cockpit sandbox profile");
+        if board.ensure_cockpit_sandboard_mcp_attach() {
+            tracing::info!("attached shipped sandboard MCP to Cockpit sandbox profile");
             board.flush();
         }
         if board.migrate_github_app_provider_name() {
@@ -850,7 +850,7 @@ impl Board {
     /// Flush durable state if anything changed. Called on an interval so a
     /// fleet of heartbeating agents doesn't turn into a write storm.
     ///
-    /// With a [`DurableBoardStore`] attached, this writes rows (not `honr.json`).
+    /// With a [`DurableBoardStore`] attached, this writes rows (not `sandboard.json`).
     /// Without a store (unit tests), the legacy whole-file JSON path remains.
     pub fn flush(&self) {
         if !self.dirty.swap(false, Ordering::Relaxed) {
@@ -1502,7 +1502,7 @@ impl Board {
             .unwrap_or_default();
         let intent = if clone_line.is_empty() {
             format!(
-                "Propose sibling Tasks for «{project_title}»: write /sandbox/.honr/plan.json \
+                "Propose sibling Tasks for «{project_title}»: write /sandbox/.sandboard/plan.json \
                  (summary + tasks with key, title, intent, definition_of_done, \
                  optional blocked_by_keys). In each task's intent and/or DoD, name the \
                  exact repository to clone (`owner/name`, and fork if cross-fork). \
@@ -1512,7 +1512,7 @@ impl Board {
         } else {
             format!(
                 "{clone_line} Propose sibling Tasks for «{project_title}»: write \
-                 /sandbox/.honr/plan.json (summary + tasks with key, title, intent, \
+                 /sandbox/.sandboard/plan.json (summary + tasks with key, title, intent, \
                  definition_of_done, optional blocked_by_keys). In each task's intent \
                  and/or DoD, name the exact repository to clone (default `{clone}` \
                  unless a task targets another repo). Do **not** open a PR. Do not \
@@ -1901,7 +1901,7 @@ impl Board {
     }
 
     /// Which sandbox this card is running in. Written before the agent starts,
-    /// so a honr that dies mid-run can still find the sandbox on restart.
+    /// so a sandboard that dies mid-run can still find the sandbox on restart.
     pub fn set_environment(&self, id: ItemId, sandbox: Option<String>) {
         let item = {
             let mut s = self.state.write();
@@ -2325,7 +2325,7 @@ impl Board {
 
     // ------------------------------------------------ workspace binding (board state)
 
-    /// Seed Forge binding when unbound. Always `github` — not from `honr.yaml`.
+    /// Seed Forge binding when unbound. Always `github` — not from `sandboard.yaml`.
     /// Card work remotes come from `pull_requests` after publish.
     pub fn seed_workspace_binding_if_empty(&self) -> bool {
         self.seed_workspace_binding_from(&AgentConfig::default())
@@ -3297,7 +3297,7 @@ impl Board {
         true
     }
 
-    /// Seed / migrate the shipped `honr` MCP catalog row.
+    /// Seed / migrate the shipped `sandboard` MCP catalog row.
     ///
     /// Inserts when missing. When the existing row is still `shipped` but not
     /// the current stdio placeholder (legacy HTTP + CockpitBearer), rewrites
@@ -3305,10 +3305,10 @@ impl Board {
     pub fn ensure_shipped_mcp_servers(&self) -> bool {
         let mut s = self.state.write();
         let mut changed = false;
-        let honr = McpServerDesired::shipped_honr();
-        match s.mcp_servers.get(&honr.id) {
+        let sandboard = McpServerDesired::shipped_sandboard();
+        match s.mcp_servers.get(&sandboard.id) {
             None => {
-                s.mcp_servers.insert(honr.id.clone(), honr);
+                s.mcp_servers.insert(sandboard.id.clone(), sandboard);
                 changed = true;
             }
             Some(existing) if existing.shipped => {
@@ -3318,7 +3318,7 @@ impl Board {
                         if command.is_empty() && args.is_empty()
                 );
                 if !is_stdio_placeholder {
-                    s.mcp_servers.insert(honr.id.clone(), honr);
+                    s.mcp_servers.insert(sandboard.id.clone(), sandboard);
                     changed = true;
                 }
             }
@@ -3331,15 +3331,15 @@ impl Board {
         changed
     }
 
-    /// Attach shipped `honr` to the Cockpit sandbox profile's `mcp_server_ids`.
+    /// Attach shipped `sandboard` to the Cockpit sandbox profile's `mcp_server_ids`.
     ///
     /// Uses `cockpit_sandbox_profile_id`, else the global default profile (same
     /// resolve order as [`Self::resolve_cockpit_sandbox_create`]). Idempotent.
     /// Matches inject: cockpit always gets the host operator MCP seat.
-    pub fn ensure_cockpit_honr_mcp_attach(&self) -> bool {
+    pub fn ensure_cockpit_sandboard_mcp_attach(&self) -> bool {
         self.ensure_shipped_mcp_servers();
         let mut s = self.state.write();
-        if !s.mcp_servers.contains_key(HONR_MCP_SERVER_ID) {
+        if !s.mcp_servers.contains_key(SANDBOARD_MCP_SERVER_ID) {
             return false;
         }
         let profile_id = s
@@ -3352,10 +3352,10 @@ impl Board {
         let Some(p) = s.sandbox_profiles.get_mut(&pid) else {
             return false;
         };
-        if p.mcp_server_ids.iter().any(|id| id == HONR_MCP_SERVER_ID) {
+        if p.mcp_server_ids.iter().any(|id| id == SANDBOARD_MCP_SERVER_ID) {
             return false;
         }
-        p.mcp_server_ids.insert(0, HONR_MCP_SERVER_ID.into());
+        p.mcp_server_ids.insert(0, SANDBOARD_MCP_SERVER_ID.into());
         drop(s);
         self.dirty.store(true, Ordering::Relaxed);
         true
@@ -3403,17 +3403,17 @@ impl Board {
     /// first. Insert only, by stable id — an operator-edited row (even one
     /// that started `shipped`) is left alone. Deliberately does **not** pick
     /// one as the default: which engine an operator wants is a real decision
-    /// (see the Welcome "Sandbox spec" readiness check), not something honr
+    /// (see the Welcome "Sandbox spec" readiness check), not something sandboard
     /// should guess on a fresh board.
     pub fn ensure_shipped_sandbox_profiles(&self) -> bool {
         self.ensure_shipped_mcp_servers();
         self.ensure_shipped_cockpit_policies();
         use crate::seed_policies::*;
         let rows: [(&str, &str, &str, &str, &str); 4] = [
-            ("sandbox-cursor", "Sandbox (cursor)", "quay.io/honr-app/sandbox-cursor:latest", COCKPIT_CURSOR_POLICY_ID, "cursor"),
-            ("sandbox-agy", "Sandbox (agy)", "quay.io/honr-app/sandbox-agy:latest", COCKPIT_AGY_POLICY_ID, "agy"),
-            ("sandbox-claude", "Sandbox (claude)", "quay.io/honr-app/sandbox-claude:latest", COCKPIT_CLAUDE_POLICY_ID, "claude"),
-            ("sandbox-opencode", "Sandbox (opencode)", "quay.io/honr-app/sandbox-opencode:latest", COCKPIT_OPENCODE_POLICY_ID, "opencode"),
+            ("sandbox-cursor", "Sandbox (cursor)", "quay.io/sandboard-app/sandbox-cursor:latest", COCKPIT_CURSOR_POLICY_ID, "cursor"),
+            ("sandbox-agy", "Sandbox (agy)", "quay.io/sandboard-app/sandbox-agy:latest", COCKPIT_AGY_POLICY_ID, "agy"),
+            ("sandbox-claude", "Sandbox (claude)", "quay.io/sandboard-app/sandbox-claude:latest", COCKPIT_CLAUDE_POLICY_ID, "claude"),
+            ("sandbox-opencode", "Sandbox (opencode)", "quay.io/sandboard-app/sandbox-opencode:latest", COCKPIT_OPENCODE_POLICY_ID, "opencode"),
         ];
         let mut s = self.state.write();
         let mut changed = false;
@@ -3434,7 +3434,7 @@ impl Board {
                     engine: Some(engine.into()),
                     model: None,
                     provider_names: Vec::new(),
-                    mcp_server_ids: vec![HONR_MCP_SERVER_ID.into()],
+                    mcp_server_ids: vec![SANDBOARD_MCP_SERVER_ID.into()],
                     env: BTreeMap::new(),
                     prompt: None,
                     shipped: true,
@@ -3671,7 +3671,7 @@ impl Board {
         &self,
         profile: SandboxProfile,
     ) -> Result<SandboxProfile, String> {
-        // So Cockpit force-attach can see shipped `honr` even on a cold board.
+        // So Cockpit force-attach can see shipped `sandboard` even on a cold board.
         self.ensure_shipped_mcp_servers();
         if profile.name.trim().is_empty() {
             return Err("sandbox profile name must not be empty".into());
@@ -3735,7 +3735,7 @@ impl Board {
                 trimmed.to_string()
             }
         };
-        // Cockpit target cannot drop shipped honr — resolve/inject re-add it.
+        // Cockpit target cannot drop shipped sandboard — resolve/inject re-add it.
         let cockpit_target = s
             .cockpit_sandbox_profile_id
             .as_deref()
@@ -3743,10 +3743,10 @@ impl Board {
         let becomes_first_default =
             s.sandbox_profiles.is_empty() && s.default_sandbox_profile_id.is_none();
         if (cockpit_target == Some(id.as_str()) || becomes_first_default)
-            && s.mcp_servers.contains_key(HONR_MCP_SERVER_ID)
-            && !mcp_server_ids.iter().any(|x| x == HONR_MCP_SERVER_ID)
+            && s.mcp_servers.contains_key(SANDBOARD_MCP_SERVER_ID)
+            && !mcp_server_ids.iter().any(|x| x == SANDBOARD_MCP_SERVER_ID)
         {
-            mcp_server_ids.insert(0, HONR_MCP_SERVER_ID.into());
+            mcp_server_ids.insert(0, SANDBOARD_MCP_SERVER_ID.into());
         }
         let stored = SandboxProfile {
             id,
@@ -3786,9 +3786,9 @@ impl Board {
         s.default_sandbox_profile_id = Some(id.to_string());
         drop(s);
         self.dirty.store(true, Ordering::Relaxed);
-        // When Cockpit inherits the global default, keep shipped honr attached.
+        // When Cockpit inherits the global default, keep shipped sandboard attached.
         if self.cockpit_sandbox_profile_id().is_none() {
-            let _ = self.ensure_cockpit_honr_mcp_attach();
+            let _ = self.ensure_cockpit_sandboard_mcp_attach();
         }
         Ok(())
     }
@@ -3801,7 +3801,7 @@ impl Board {
         s.cockpit_sandbox_profile_id = Some(id.to_string());
         drop(s);
         self.dirty.store(true, Ordering::Relaxed);
-        let _ = self.ensure_cockpit_honr_mcp_attach();
+        let _ = self.ensure_cockpit_sandboard_mcp_attach();
         Ok(())
     }
 
@@ -3811,7 +3811,7 @@ impl Board {
         if s.cockpit_sandbox_profile_id.take().is_some() {
             drop(s);
             self.dirty.store(true, Ordering::Relaxed);
-            let _ = self.ensure_cockpit_honr_mcp_attach();
+            let _ = self.ensure_cockpit_sandboard_mcp_attach();
         }
     }
 
@@ -4073,7 +4073,7 @@ impl Board {
     /// Profile → resolved create: audience-filter MCP ids, merge policy fragments,
     /// union provider names from attached MCP servers.
     ///
-    /// Cockpit always includes shipped `honr` when present in the catalog, even
+    /// Cockpit always includes shipped `sandboard` when present in the catalog, even
     /// if the profile list omitted it (same as inject).
     fn materialize_resolved(
         s: &BoardState,
@@ -4101,11 +4101,11 @@ impl Board {
             })
             .collect();
         if for_cockpit {
-            if let Some(honr) = s.mcp_servers.get(HONR_MCP_SERVER_ID) {
-                if honr.audience.allows_cockpit()
-                    && !servers.iter().any(|m| m.id == HONR_MCP_SERVER_ID)
+            if let Some(sandboard) = s.mcp_servers.get(SANDBOARD_MCP_SERVER_ID) {
+                if sandboard.audience.allows_cockpit()
+                    && !servers.iter().any(|m| m.id == SANDBOARD_MCP_SERVER_ID)
                 {
-                    servers.insert(0, honr);
+                    servers.insert(0, sandboard);
                 }
             }
         }
@@ -4205,8 +4205,8 @@ impl Board {
     // ------------------------------------------------------- the agent verbs
 
     /// A card still leased to this agent — survives a restart mid-flight. The
-    /// supervisor's startup reconciliation is the next caller: honr restarts
-    /// constantly while honr is what's being built, and sandboxes outlive it.
+    /// supervisor's startup reconciliation is the next caller: sandboard restarts
+    /// constantly while sandboard is what's being built, and sandboxes outlive it.
     #[allow(dead_code)]
     pub fn leased_to(&self, agent_id: &str) -> Option<ItemId> {
         let s = self.state.read();
@@ -5155,7 +5155,7 @@ impl Board {
 
     /// `report` — agent finished and opened a PR; card goes to Review.
     ///
-    /// Mechanical checks are CI on the PR, not a honr Verify column. `gates` is
+    /// Mechanical checks are CI on the PR, not a sandboard Verify column. `gates` is
     /// kept as optional agent-side notes only.
     ///
     /// Clears stale bounce UI (`last_bounce_reason` / `last_conflict_files`) —
@@ -5454,7 +5454,7 @@ facts are pasted, then unpark";
                 it.conversation_id = None;
                 it.parked = false;
                 // Cleared before Backlog transition so the sweeper will not
-                // preserve `honr-card-{id}-*` via the non-terminal prefix keep.
+                // preserve `sandboard-card-{id}-*` via the non-terminal prefix keep.
                 it.environment.take()
             } else {
                 None
@@ -6562,7 +6562,7 @@ facts are pasted, then unpark";
             agent_timeout_secs: agents.agent_timeout_secs,
             seq: self.seq.load(Ordering::Relaxed),
             default_engine: agents.engine,
-            // Model selection moves to OpenShell-in-honr config; keep empty for UI.
+            // Model selection moves to OpenShell-in-sandboard config; keep empty for UI.
             default_model: String::new(),
         }
     }
@@ -6920,7 +6920,7 @@ mod tests {
     fn claimed_leaf() -> (Board, ItemId) {
         let b = Board::new(
             Schema::default(),
-            std::env::temp_dir().join("honr-test-nowrite.json"),
+            std::env::temp_dir().join("sandboard-test-nowrite.json"),
         );
         let parent = b
             .create(None, "goal", "why", None, Origin::Human, true, None)
@@ -6949,7 +6949,7 @@ mod tests {
     fn claim_sets_run_deadline_from_timeout() {
         let b = Board::new(
             Schema::default(),
-            std::env::temp_dir().join("honr-test-deadline.json"),
+            std::env::temp_dir().join("sandboard-test-deadline.json"),
         );
         let parent = b
             .create(None, "goal", "why", None, Origin::Human, true, None)
@@ -7061,11 +7061,11 @@ mod tests {
     #[test]
     fn park_keeps_conversation_and_environment() {
         let (b, id) = claimed_leaf();
-        b.set_environment(id, Some("honr-card-1-a1".into()));
+        b.set_environment(id, Some("sandboard-card-1-a1".into()));
         b.set_conversation_id(id, Some("conv-xyz".into()));
         let it = b.park(id, Some("wedged on cargo".into())).expect("park");
         assert_eq!(it.state, State::Backlog);
-        assert_eq!(it.environment.as_deref(), Some("honr-card-1-a1"));
+        assert_eq!(it.environment.as_deref(), Some("sandboard-card-1-a1"));
         assert_eq!(it.conversation_id.as_deref(), Some("conv-xyz"));
         assert!(it.parked, "park must hold the card from reclaim");
         assert!(!b.may_claim(id), "parked card must not be claimable");
@@ -7089,14 +7089,14 @@ mod tests {
     fn cockpit_session_create_update_park_resume_stop_invariants() {
         let b = Board::new(
             Schema::default(),
-            std::env::temp_dir().join("honr-test-cockpit-session.json"),
+            std::env::temp_dir().join("sandboard-test-cockpit-session.json"),
         );
         assert!(b.cockpit_session().is_none());
 
         let created = b
-            .create_cockpit_session(Some("honr-cockpit".into()), None)
+            .create_cockpit_session(Some("sandboard-cockpit".into()), None)
             .expect("create");
-        assert_eq!(created.environment.as_deref(), Some("honr-cockpit"));
+        assert_eq!(created.environment.as_deref(), Some("sandboard-cockpit"));
         assert!(created.conversation_id.is_none());
         assert_eq!(created.status, CockpitSessionStatus::Running);
         assert_eq!(created.sandbox_phase, CockpitSandboxPhase::Ready);
@@ -7118,7 +7118,7 @@ mod tests {
             .contains("previous sandbox"));
         b.stop_cockpit_session().expect("clear again");
         let created = b
-            .create_cockpit_session(Some("honr-cockpit".into()), None)
+            .create_cockpit_session(Some("sandboard-cockpit".into()), None)
             .expect("create with env");
         assert_eq!(created.sandbox_phase, CockpitSandboxPhase::Ready);
 
@@ -7130,7 +7130,7 @@ mod tests {
         let updated = b
             .update_cockpit_session(None, Some("conv-cockpit-1".into()))
             .expect("set conversation");
-        assert_eq!(updated.environment.as_deref(), Some("honr-cockpit"));
+        assert_eq!(updated.environment.as_deref(), Some("sandboard-cockpit"));
         assert_eq!(updated.conversation_id.as_deref(), Some("conv-cockpit-1"));
         assert_eq!(updated.status, CockpitSessionStatus::Running);
 
@@ -7144,19 +7144,19 @@ mod tests {
             Some("conv-cockpit-1")
         );
 
-        b.update_cockpit_session(Some("honr-cockpit".into()), None)
+        b.update_cockpit_session(Some("sandboard-cockpit".into()), None)
             .expect("restore env");
 
         let parked = b.park_cockpit_session().expect("park");
         assert_eq!(parked.status, CockpitSessionStatus::Parked);
-        assert_eq!(parked.environment.as_deref(), Some("honr-cockpit"));
+        assert_eq!(parked.environment.as_deref(), Some("sandboard-cockpit"));
         assert_eq!(parked.conversation_id.as_deref(), Some("conv-cockpit-1"));
         let err = b.park_cockpit_session().expect_err("already parked");
         assert!(err.contains("already parked"), "{err}");
 
         let resumed = b.resume_cockpit_session().expect("resume");
         assert_eq!(resumed.status, CockpitSessionStatus::Running);
-        assert_eq!(resumed.environment.as_deref(), Some("honr-cockpit"));
+        assert_eq!(resumed.environment.as_deref(), Some("sandboard-cockpit"));
         assert_eq!(resumed.conversation_id.as_deref(), Some("conv-cockpit-1"));
         let err = b.resume_cockpit_session().expect_err("not parked");
         assert!(err.contains("not parked"), "{err}");
@@ -7167,9 +7167,9 @@ mod tests {
 
         // After stop, create works again — not card claim/report lifecycle.
         let again = b
-            .create_cockpit_session(Some("honr-cockpit-2".into()), Some("conv-2".into()))
+            .create_cockpit_session(Some("sandboard-cockpit-2".into()), Some("conv-2".into()))
             .expect("recreate");
-        assert_eq!(again.environment.as_deref(), Some("honr-cockpit-2"));
+        assert_eq!(again.environment.as_deref(), Some("sandboard-cockpit-2"));
         assert_eq!(again.conversation_id.as_deref(), Some("conv-2"));
     }
 
@@ -7177,7 +7177,7 @@ mod tests {
     fn resolve_cockpit_sandbox_create_uses_cockpit_profile_preference() {
         let b = Board::new(
             Schema::default(),
-            std::env::temp_dir().join(format!("honr-test-resolve-cockpit-{}", std::process::id())),
+            std::env::temp_dir().join(format!("sandboard-test-resolve-cockpit-{}", std::process::id())),
         );
         upsert_test_profile(&b, "default", "Default", "seed-image:test");
         assert!(
@@ -7200,7 +7200,7 @@ mod tests {
         let b = Board::new(
             Schema::default(),
             std::env::temp_dir().join(format!(
-                "honr-test-resolve-cockpit-engine-{}",
+                "sandboard-test-resolve-cockpit-engine-{}",
                 std::process::id()
             )),
         );
@@ -7219,7 +7219,7 @@ mod tests {
     fn cockpit_session_update_requires_existing_session() {
         let b = Board::new(
             Schema::default(),
-            std::env::temp_dir().join("honr-test-cockpit-session-missing.json"),
+            std::env::temp_dir().join("sandboard-test-cockpit-session-missing.json"),
         );
         let err = b
             .update_cockpit_session(Some("x".into()), None)
@@ -7232,14 +7232,14 @@ mod tests {
     #[test]
     fn cockpit_session_round_trips_json_flush_load() {
         let path = std::env::temp_dir().join(format!(
-            "honr-test-cockpit-session-json-{}.json",
+            "sandboard-test-cockpit-session-json-{}.json",
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
                 .as_nanos()
         ));
         let b = Board::new(Schema::default(), path.clone());
-        b.create_cockpit_session(Some("honr-cockpit".into()), Some("conv-a".into()))
+        b.create_cockpit_session(Some("sandboard-cockpit".into()), Some("conv-a".into()))
             .expect("create");
         b.park_cockpit_session().expect("park");
         b.dirty.store(true, Ordering::Relaxed);
@@ -7252,7 +7252,7 @@ mod tests {
                 .cockpit_session
                 .as_ref()
                 .map(|s| s.environment.as_deref()),
-            Some(Some("honr-cockpit"))
+            Some(Some("sandboard-cockpit"))
         );
         assert_eq!(
             state
@@ -7272,7 +7272,7 @@ mod tests {
     fn enqueue_dispatch_marks_card_for_supervisor() {
         let b = Board::new(
             Schema::default(),
-            std::env::temp_dir().join("honr-test-dispatch.json"),
+            std::env::temp_dir().join("sandboard-test-dispatch.json"),
         );
         let parent = b
             .create(None, "goal", "why", None, Origin::Human, true, None)
@@ -7313,7 +7313,7 @@ mod tests {
     fn hot_path_filters_match_legacy_semantics() {
         let b = Board::new(
             Schema::default(),
-            std::env::temp_dir().join("honr-test-hot-filters.json"),
+            std::env::temp_dir().join("sandboard-test-hot-filters.json"),
         );
         let project = b
             .create(None, "Proj", "why", None, Origin::Human, true, None)
@@ -7463,7 +7463,7 @@ mod tests {
     fn snapshot_uses_project_roots_and_child_index() {
         let b = Board::new(
             Schema::default(),
-            std::env::temp_dir().join("honr-test-snap-index.json"),
+            std::env::temp_dir().join("sandboard-test-snap-index.json"),
         );
         let p1 = b
             .create(None, "A", "a", None, Origin::Human, true, None)
@@ -7500,7 +7500,7 @@ mod tests {
     fn project_auto_dispatch_queues_and_pauses() {
         let b = Board::new(
             Schema::default(),
-            std::env::temp_dir().join("honr-test-auto-dispatch.json"),
+            std::env::temp_dir().join("sandboard-test-auto-dispatch.json"),
         );
         let project = b
             .create(None, "goal", "why", None, Origin::Human, true, None)
@@ -7590,7 +7590,7 @@ mod tests {
     #[test]
     fn halt_clears_conversation_and_environment() {
         let (b, id) = claimed_leaf();
-        b.set_environment(id, Some("honr-card-1-a1".into()));
+        b.set_environment(id, Some("sandboard-card-1-a1".into()));
         b.set_conversation_id(id, Some("conv-xyz".into()));
         let it = b.halt(id, Some("start over".into())).expect("halt");
         assert_eq!(it.state, State::Backlog);
@@ -7618,7 +7618,7 @@ mod tests {
     #[test]
     fn reopen_for_adoption_from_backlog_with_environment() {
         let (b, id) = claimed_leaf();
-        b.set_environment(id, Some("honr-card-1-a1".into()));
+        b.set_environment(id, Some("sandboard-card-1-a1".into()));
         b.record_run_failure(id, "agent exited -1: follower died", 3)
             .expect("failed into backlog");
         assert_eq!(b.get(id).unwrap().state, State::Backlog);
@@ -7627,7 +7627,7 @@ mod tests {
             .reopen_for_adoption(id, "sandbox-1", 3600)
             .expect("reopened");
         assert_eq!(it.state, State::Claimed);
-        assert_eq!(it.environment.as_deref(), Some("honr-card-1-a1"));
+        assert_eq!(it.environment.as_deref(), Some("sandboard-card-1-a1"));
         assert!(it.lease.is_some());
         assert!(it.run_deadline_at.is_some());
         assert!(!it.awaiting_dispatch);
@@ -7745,7 +7745,7 @@ mod tests {
         b2.record_run_failure(id2, "boom", 1).expect("escalated");
         b2.answer_escalation(
             id2,
-            "Paste run facts now: card=#9 pr_url=https://github.com/clankrshq/honr-sandbox-probe/pull/2 upstream=clankrshq/honr-sandbox-probe"
+            "Paste run facts now: card=#9 pr_url=https://github.com/clankrshq/sandboard-sandbox-probe/pull/2 upstream=clankrshq/sandboard-sandbox-probe"
                 .into(),
         )
         .expect("answered");
@@ -7766,7 +7766,7 @@ mod tests {
     fn delete_item_removes_item_and_descendants() {
         let b = std::sync::Arc::new(Board::new(
             crate::schema::Schema::default(),
-            std::env::temp_dir().join("honr-test-del.json"),
+            std::env::temp_dir().join("sandboard-test-del.json"),
         ));
         let p = b
             .create(None, "Parent", "intent", None, Origin::Human, false, None)
@@ -7831,7 +7831,7 @@ mod tests {
     fn propose_split_accepts_on_theme_children() {
         let b = Board::new(
             Schema::default(),
-            std::env::temp_dir().join("honr-test-split-theme-accept.json"),
+            std::env::temp_dir().join("sandboard-test-split-theme-accept.json"),
         );
         let project = b
             .create(
@@ -7885,7 +7885,7 @@ mod tests {
     fn propose_split_rejects_off_theme_children() {
         let b = Board::new(
             Schema::default(),
-            std::env::temp_dir().join("honr-test-split-theme-reject.json"),
+            std::env::temp_dir().join("sandboard-test-split-theme-reject.json"),
         );
         let project = b
             .create(
@@ -7969,7 +7969,7 @@ mod tests {
     fn propose_split_refused_on_project_root() {
         let b = Board::new(
             Schema::default(),
-            std::env::temp_dir().join("honr-test-split-root.json"),
+            std::env::temp_dir().join("sandboard-test-split-root.json"),
         );
         let project = b
             .create(None, "proj", "why", None, Origin::Human, true, None)
@@ -7994,7 +7994,7 @@ mod tests {
         let (b, id) = claimed_leaf();
         b.set_pr_url(
             id,
-            Some("https://github.com/honr-app/honr/pull/42".to_string()),
+            Some("https://github.com/sandboard-app/sandboard/pull/42".to_string()),
         );
         let children = vec![
             SplitChildSpec::new("Part 1", "Do part 1", "Part 1 done"),
@@ -8015,7 +8015,7 @@ mod tests {
     fn initial_plan_refuses_propose_split() {
         let b = Board::new(
             Schema::default(),
-            std::env::temp_dir().join("honr-test-initial-plan-no-split.json"),
+            std::env::temp_dir().join("sandboard-test-initial-plan-no-split.json"),
         );
         let (project, seed) = project_with_initial_plan(&b, "Archive UI");
         let seed_id = seed.id;
@@ -8055,7 +8055,7 @@ mod tests {
     fn approve_split_proposal_wires_blocked_by_keys() {
         let b = Board::new(
             Schema::default(),
-            std::env::temp_dir().join("honr-test-split-deps.json"),
+            std::env::temp_dir().join("sandboard-test-split-deps.json"),
         );
         let project = b
             .create(
@@ -8123,7 +8123,7 @@ mod tests {
     fn approve_split_reuses_existing_siblings_by_title() {
         let b = Board::new(
             Schema::default(),
-            std::env::temp_dir().join("honr-test-split-idempotent.json"),
+            std::env::temp_dir().join("sandboard-test-split-idempotent.json"),
         );
         let project = b
             .create(
@@ -8234,7 +8234,7 @@ mod tests {
     fn nest_under_task_is_refused() {
         let b = Board::new(
             Schema::default(),
-            std::env::temp_dir().join("honr-test-nest.json"),
+            std::env::temp_dir().join("sandboard-test-nest.json"),
         );
         let project = b
             .create(None, "proj", "why", None, Origin::Human, true, None)
@@ -8269,7 +8269,7 @@ mod tests {
         let b = Board::new(
             Schema::default(),
             std::env::temp_dir().join(format!(
-                "honr-test-create-task-{}-{}.json",
+                "sandboard-test-create-task-{}-{}.json",
                 std::process::id(),
                 std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)
@@ -8278,7 +8278,7 @@ mod tests {
             )),
         );
         let project = b
-            .create_project("Proj", "Ship it", "honr-app/honr", true, None)
+            .create_project("Proj", "Ship it", "sandboard-app/sandboard", true, None)
             .expect("project");
 
         let blocker = b
@@ -8314,7 +8314,7 @@ mod tests {
         assert_eq!(blocked.state, State::Backlog);
         assert_eq!(blocked.blocked_by, vec![blocker.id]);
         assert!(
-            blocked.intent.contains("Clone repository: honr-app/honr"),
+            blocked.intent.contains("Clone repository: sandboard-app/sandboard"),
             "Project default must stamp when omitted: {}",
             blocked.intent
         );
@@ -8349,7 +8349,7 @@ mod tests {
         let b = Board::new(
             Schema::default(),
             std::env::temp_dir().join(format!(
-                "honr-test-create-task-no-clone-{}-{}.json",
+                "sandboard-test-create-task-no-clone-{}-{}.json",
                 std::process::id(),
                 std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)
@@ -8384,7 +8384,7 @@ mod tests {
     fn project_create_auto_seeds_initial_plan() {
         let b = Board::new(
             Schema::default(),
-            std::env::temp_dir().join("honr-test-auto-seed.json"),
+            std::env::temp_dir().join("sandboard-test-auto-seed.json"),
         );
         let project = b
             .create(None, "Phase X", "why", None, Origin::Human, true, None)
@@ -8411,7 +8411,7 @@ mod tests {
     fn create_project_requires_clone_repo_and_stamps_initial_plan() {
         let b = Board::new(
             Schema::default(),
-            std::env::temp_dir().join("honr-test-create-project-clone.json"),
+            std::env::temp_dir().join("sandboard-test-create-project-clone.json"),
         );
         let err = b
             .create_project("No Repo", "why", "", true, None)
@@ -8422,13 +8422,13 @@ mod tests {
             .create_project(
                 "OpenShell settings",
                 "Rework the OpenShell settings surface",
-                "honr-app/honr",
+                "sandboard-app/sandboard",
                 true,
                 None,
             )
             .expect("create_project");
         assert!(
-            project.intent.contains("Clone repository: honr-app/honr"),
+            project.intent.contains("Clone repository: sandboard-app/sandboard"),
             "{}",
             project.intent
         );
@@ -8439,7 +8439,7 @@ mod tests {
         );
         let seed = b.initial_plan_of(project.id).expect("seeded");
         assert!(
-            seed.intent.contains("Clone repository: honr-app/honr"),
+            seed.intent.contains("Clone repository: sandboard-app/sandboard"),
             "Initial plan must stamp planning clone: {}",
             seed.intent
         );
@@ -8447,7 +8447,7 @@ mod tests {
             seed.definition_of_done
                 .as_deref()
                 .unwrap_or("")
-                .contains("honr-app/honr"),
+                .contains("sandboard-app/sandboard"),
             "{:?}",
             seed.definition_of_done
         );
@@ -8457,7 +8457,7 @@ mod tests {
     fn init_plan_is_idempotent_after_auto_seed() {
         let b = Board::new(
             Schema::default(),
-            std::env::temp_dir().join("honr-test-init-plan.json"),
+            std::env::temp_dir().join("sandboard-test-init-plan.json"),
         );
         let project = b
             .create(None, "Phase X", "why", None, Origin::Human, true, None)
@@ -8480,7 +8480,7 @@ mod tests {
     fn approve_creates_siblings_without_structured_repo() {
         let b = Board::new(
             Schema::default(),
-            std::env::temp_dir().join("honr-test-approve-no-repo.json"),
+            std::env::temp_dir().join("sandboard-test-approve-no-repo.json"),
         );
         let (project, seed) = project_with_initial_plan(&b, "Phase Prose Repo");
         assert!(seed.repo.is_none());
@@ -8559,7 +8559,7 @@ mod tests {
     fn approve_plan_materializes_from_initial_plan_proposal() {
         let b = Board::new(
             Schema::default(),
-            std::env::temp_dir().join("honr-test-approve-plan.json"),
+            std::env::temp_dir().join("sandboard-test-approve-plan.json"),
         );
         let (project, _seed) = project_with_initial_plan(&b, "Phase Y");
         let _ = b.transition(project.id, State::Shaping, "t", None);
@@ -8624,7 +8624,7 @@ mod tests {
     fn approve_plan_closes_initial_plan_in_review() {
         let b = Board::new(
             Schema::default(),
-            std::env::temp_dir().join("honr-test-approve-closes-review.json"),
+            std::env::temp_dir().join("sandboard-test-approve-closes-review.json"),
         );
         let (project, seed) = project_with_initial_plan(&b, "Phase Review");
         let seed_id = seed.id;
@@ -8684,7 +8684,7 @@ mod tests {
     fn approve_review_on_initial_plan_materializes_awaiting_plan() {
         let b = Board::new(
             Schema::default(),
-            std::env::temp_dir().join("honr-test-approve-review-initial.json"),
+            std::env::temp_dir().join("sandboard-test-approve-review-initial.json"),
         );
         let (project, seed) = project_with_initial_plan(&b, "Phase AR");
         let seed_id = seed.id;
@@ -8751,7 +8751,7 @@ mod tests {
     fn propose_plan_refused_after_initial_plan_accepted() {
         let b = Board::new(
             Schema::default(),
-            std::env::temp_dir().join("honr-test-plan-frozen.json"),
+            std::env::temp_dir().join("sandboard-test-plan-frozen.json"),
         );
         let (project, _seed) = project_with_initial_plan(&b, "Phase Freeze");
         let _ = b.transition(project.id, State::Shaping, "t", None);
@@ -8796,7 +8796,7 @@ mod tests {
     fn claim_briefing_reads_frozen_initial_plan_proposal() {
         let b = Board::new(
             Schema::default(),
-            std::env::temp_dir().join("honr-test-claim-from-proposal.json"),
+            std::env::temp_dir().join("sandboard-test-claim-from-proposal.json"),
         );
         let (project, _seed) = project_with_initial_plan(&b, "Phase Brief");
         let _ = b.transition(project.id, State::Shaping, "t", None);
@@ -8831,7 +8831,7 @@ mod tests {
     fn approve_plan_materializes_diamond_dag() {
         let b = Board::new(
             Schema::default(),
-            std::env::temp_dir().join("honr-test-approve-diamond-dag.json"),
+            std::env::temp_dir().join("sandboard-test-approve-diamond-dag.json"),
         );
         let (project, _seed) = project_with_initial_plan(&b, "Phase Diamond");
         let _ = b.transition(project.id, State::Shaping, "t", None);
@@ -8920,7 +8920,7 @@ mod tests {
     fn project_with_ready_task() -> (Board, ItemId, ItemId) {
         let b = Board::new(
             Schema::default(),
-            std::env::temp_dir().join(format!("honr-proj-task-{}.json", std::process::id())),
+            std::env::temp_dir().join(format!("sandboard-proj-task-{}.json", std::process::id())),
         );
         let project = b
             .create(None, "proj", "why", None, Origin::Human, true, None)
@@ -8980,7 +8980,7 @@ mod tests {
         // agent_runtime() while still holding state.read(); freeze → NOT LIVE.
         let b = Board::new(
             Schema::default(),
-            std::env::temp_dir().join("honr-test-snapshot-agents-reenter.json"),
+            std::env::temp_dir().join("sandboard-test-snapshot-agents-reenter.json"),
         );
         assert!(b.seed_agent_runtime_if_empty());
         let snap = b.snapshot();
@@ -8994,7 +8994,7 @@ mod tests {
         // snapshot still held state.read(); std RwLock is not reentrant → freeze.
         let b = Board::new(
             Schema::default(),
-            std::env::temp_dir().join("honr-test-snapshot-reenter.json"),
+            std::env::temp_dir().join("sandboard-test-snapshot-reenter.json"),
         );
         let (project, seed) = project_with_initial_plan(&b, "Reenter");
         let seed_id = seed.id;
@@ -9031,7 +9031,7 @@ mod tests {
     fn archived_project_marked_in_snapshot_omitted_from_digest() {
         let b = Board::new(
             Schema::default(),
-            std::env::temp_dir().join("honr-test-archive-hide.json"),
+            std::env::temp_dir().join("sandboard-test-archive-hide.json"),
         );
         let keep = b
             .create(None, "Keep me", "why", None, Origin::Human, true, None)
@@ -9076,7 +9076,7 @@ mod tests {
         let b = Board::new(
             Schema::default(),
             std::env::temp_dir().join(format!(
-                "honr-test-unarchive-roundtrip-{}.json",
+                "sandboard-test-unarchive-roundtrip-{}.json",
                 std::process::id()
             )),
         );
@@ -9130,7 +9130,7 @@ mod tests {
         let b = Board::new(
             Schema::default(),
             std::env::temp_dir().join(format!(
-                "honr-test-unarchive-inflight-{}.json",
+                "sandboard-test-unarchive-inflight-{}.json",
                 std::process::id()
             )),
         );
@@ -9172,7 +9172,7 @@ mod tests {
         let b = Board::new(
             Schema::default(),
             std::env::temp_dir().join(format!(
-                "honr-test-unarchive-reject-{}.json",
+                "sandboard-test-unarchive-reject-{}.json",
                 std::process::id()
             )),
         );
@@ -9191,7 +9191,7 @@ mod tests {
         let b = Board::new(
             Schema::default(),
             std::env::temp_dir().join(format!(
-                "honr-test-unarchive-shaping-{}.json",
+                "sandboard-test-unarchive-shaping-{}.json",
                 std::process::id()
             )),
         );
@@ -9228,7 +9228,7 @@ mod tests {
         let b = Board::new(
             Schema::default(),
             std::env::temp_dir().join(format!(
-                "honr-test-digest-ready-{}.json",
+                "sandboard-test-digest-ready-{}.json",
                 std::process::id()
             )),
         );
@@ -9263,7 +9263,7 @@ mod tests {
         let b = Board::new(
             Schema::default(),
             std::env::temp_dir().join(format!(
-                "honr-test-retired-leaves-{}.json",
+                "sandboard-test-retired-leaves-{}.json",
                 std::process::id()
             )),
         );
@@ -9325,7 +9325,7 @@ mod tests {
     fn ready_column_summary_mentions_blockers_in_plain_language() {
         let b = Board::new(
             crate::schema::Schema::default(),
-            std::env::temp_dir().join("honr-test-summary-blockers.json"),
+            std::env::temp_dir().join("sandboard-test-summary-blockers.json"),
         );
         let project = b
             .create(
@@ -9419,7 +9419,7 @@ mod tests {
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .as_nanos();
-        let dir = std::env::temp_dir().join(format!("honr-sb-del-test-{nanos}"));
+        let dir = std::env::temp_dir().join(format!("sandboard-sb-del-test-{nanos}"));
         std::fs::create_dir_all(&dir).unwrap();
         let log_file = dir.join("openshell_calls.log");
         let log_path = log_file.clone();
@@ -9462,7 +9462,7 @@ mod tests {
                 None,
             )
             .unwrap();
-        b.set_environment(t1.id, Some("honr-card-1-a1".into()));
+        b.set_environment(t1.id, Some("sandboard-card-1-a1".into()));
         let _ = b.transition(t1.id, State::Shaping, "human", None);
         let _ = b.transition(t1.id, State::Backlog, "human", None);
         let _ = b.transition(t1.id, State::Claimed, "human", None);
@@ -9471,7 +9471,7 @@ mod tests {
 
         assert_eq!(
             b.get(t1.id).unwrap().environment.as_deref(),
-            Some("honr-card-1-a1")
+            Some("sandboard-card-1-a1")
         );
 
         // 2. Transition to Done clears environment and triggers sandbox deletion
@@ -9481,13 +9481,13 @@ mod tests {
         eventually(|| {
             std::fs::read_to_string(&log_file)
                 .unwrap_or_default()
-                .contains("sandbox delete honr-card-1-a1")
+                .contains("sandbox delete sandboard-card-1-a1")
         })
         .await;
         let log_content = std::fs::read_to_string(&log_file).unwrap_or_default();
         assert!(
-            log_content.contains("sandbox delete honr-card-1-a1"),
-            "expected 'sandbox delete honr-card-1-a1' in log, got: {log_content}"
+            log_content.contains("sandbox delete sandboard-card-1-a1"),
+            "expected 'sandbox delete sandboard-card-1-a1' in log, got: {log_content}"
         );
 
         // 3. Transition to Retired clears environment and triggers sandbox deletion
@@ -9502,20 +9502,20 @@ mod tests {
                 None,
             )
             .unwrap();
-        b.set_environment(t2.id, Some("honr-card-2-a1".into()));
+        b.set_environment(t2.id, Some("sandboard-card-2-a1".into()));
         let _ = b.transition(t2.id, State::Retired, "human", None);
         assert_eq!(b.get(t2.id).unwrap().environment, None);
 
         eventually(|| {
             std::fs::read_to_string(&log_file)
                 .unwrap_or_default()
-                .contains("sandbox delete honr-card-2-a1")
+                .contains("sandbox delete sandboard-card-2-a1")
         })
         .await;
         let log_content = std::fs::read_to_string(&log_file).unwrap_or_default();
         assert!(
-            log_content.contains("sandbox delete honr-card-2-a1"),
-            "expected 'sandbox delete honr-card-2-a1' in log, got: {log_content}"
+            log_content.contains("sandbox delete sandboard-card-2-a1"),
+            "expected 'sandbox delete sandboard-card-2-a1' in log, got: {log_content}"
         );
 
         // 4. Item deletion triggers sandbox deletion
@@ -9530,20 +9530,20 @@ mod tests {
                 None,
             )
             .unwrap();
-        b.set_environment(t3.id, Some("honr-card-3-a1".into()));
+        b.set_environment(t3.id, Some("sandboard-card-3-a1".into()));
         b.delete_item(t3.id).expect("delete_item succeeds");
         assert!(b.get(t3.id).is_none());
 
         eventually(|| {
             std::fs::read_to_string(&log_file)
                 .unwrap_or_default()
-                .contains("sandbox delete honr-card-3-a1")
+                .contains("sandbox delete sandboard-card-3-a1")
         })
         .await;
         let log_content = std::fs::read_to_string(&log_file).unwrap_or_default();
         assert!(
-            log_content.contains("sandbox delete honr-card-3-a1"),
-            "expected 'sandbox delete honr-card-3-a1' in log, got: {log_content}"
+            log_content.contains("sandbox delete sandboard-card-3-a1"),
+            "expected 'sandbox delete sandboard-card-3-a1' in log, got: {log_content}"
         );
 
         // 5. Halt clears environment and deletes the sandbox
@@ -9561,20 +9561,20 @@ mod tests {
         let _ = b.transition(t4.id, State::Shaping, "human", None);
         let _ = b.transition(t4.id, State::Backlog, "human", None);
         let _ = b.transition(t4.id, State::Claimed, "human", None);
-        b.set_environment(t4.id, Some("honr-card-4-a1".into()));
+        b.set_environment(t4.id, Some("sandboard-card-4-a1".into()));
         b.halt(t4.id, Some("start over".into())).expect("halt");
         assert_eq!(b.get(t4.id).unwrap().environment, None);
 
         eventually(|| {
             std::fs::read_to_string(&log_file)
                 .unwrap_or_default()
-                .contains("sandbox delete honr-card-4-a1")
+                .contains("sandbox delete sandboard-card-4-a1")
         })
         .await;
         let log_content = std::fs::read_to_string(&log_file).unwrap_or_default();
         assert!(
-            log_content.contains("sandbox delete honr-card-4-a1"),
-            "expected 'sandbox delete honr-card-4-a1' in log, got: {log_content}"
+            log_content.contains("sandbox delete sandboard-card-4-a1"),
+            "expected 'sandbox delete sandboard-card-4-a1' in log, got: {log_content}"
         );
 
         let _ = std::fs::remove_dir_all(&dir);
@@ -9585,7 +9585,7 @@ mod tests {
         let b = Arc::new(Board::new(
             Schema::default(),
             std::env::temp_dir().join(format!(
-                "honr-test-approve-with-pr-{}.json",
+                "sandboard-test-approve-with-pr-{}.json",
                 std::process::id()
             )),
         ));
@@ -9618,7 +9618,7 @@ mod tests {
         let _ = b.transition(t.id, State::Review, "agent", None);
         b.set_pr_url(
             t.id,
-            Some("https://github.com/honr-app/honr/pull/99".into()),
+            Some("https://github.com/sandboard-app/sandboard/pull/99".into()),
         );
 
         let item = b.approve_review(t.id).expect("approve");
@@ -9629,7 +9629,7 @@ mod tests {
         );
         // Webhook after Approve is a no-op (idempotent).
         assert!(b
-            .complete_for_merged_pr("https://github.com/honr-app/honr/pull/99", Some(99))
+            .complete_for_merged_pr("https://github.com/sandboard-app/sandboard/pull/99", Some(99))
             .is_none());
         assert_eq!(b.get(t.id).unwrap().state, State::Done);
     }
@@ -9639,7 +9639,7 @@ mod tests {
         let b = Arc::new(Board::new(
             Schema::default(),
             std::env::temp_dir().join(format!(
-                "honr-test-complete-merged-pr-{}.json",
+                "sandboard-test-complete-merged-pr-{}.json",
                 std::process::id()
             )),
         ));
@@ -9672,27 +9672,27 @@ mod tests {
         let _ = b.transition(t.id, State::Review, "agent", None);
         b.set_pr_url(
             t.id,
-            Some("https://github.com/honr-app/honr/pull/55/".into()),
+            Some("https://github.com/sandboard-app/sandboard/pull/55/".into()),
         );
 
         assert_eq!(
-            Board::normalize_pr_url("https://GitHub.com/honr-app/honr/pull/55/"),
-            "https://github.com/honr-app/honr/pull/55"
+            Board::normalize_pr_url("https://GitHub.com/sandboard-app/sandboard/pull/55/"),
+            "https://github.com/sandboard-app/sandboard/pull/55"
         );
 
         let done_id = b
-            .complete_for_merged_pr("https://GitHub.com/honr-app/honr/pull/55", Some(55))
+            .complete_for_merged_pr("https://GitHub.com/sandboard-app/sandboard/pull/55", Some(55))
             .expect("should complete Review card");
         assert_eq!(done_id, t.id);
         assert_eq!(b.get(t.id).unwrap().state, State::Done);
 
         assert!(
-            b.complete_for_merged_pr("https://github.com/honr-app/honr/pull/55", Some(55))
+            b.complete_for_merged_pr("https://github.com/sandboard-app/sandboard/pull/55", Some(55))
                 .is_none(),
             "idempotent: already Done"
         );
         assert!(
-            b.complete_for_merged_pr("https://github.com/honr-app/honr/pull/56", Some(56))
+            b.complete_for_merged_pr("https://github.com/sandboard-app/sandboard/pull/56", Some(56))
                 .is_none(),
             "no match"
         );
@@ -9726,14 +9726,14 @@ mod tests {
         let b = Board::new(
             Schema::default(),
             std::env::temp_dir().join(format!(
-                "honr-test-report-pr-append-{}.json",
+                "sandboard-test-report-pr-append-{}.json",
                 std::process::id()
             )),
         );
         let t = review_leaf(&b, "Two PRs");
         b.report_pull_request(
             t.id,
-            crate::model::PullRequest::from_url("https://github.com/honr-app/honr/pull/1"),
+            crate::model::PullRequest::from_url("https://github.com/sandboard-app/sandboard/pull/1"),
         )
         .unwrap();
         b.report_pull_request(
@@ -9746,14 +9746,14 @@ mod tests {
         assert_eq!(
             item.pr_urls(),
             vec![
-                "https://github.com/honr-app/honr/pull/1",
+                "https://github.com/sandboard-app/sandboard/pull/1",
                 "https://github.com/other/widgets/pull/2"
             ]
         );
         // Same URL updates rather than duplicating.
-        let mut again = crate::model::PullRequest::from_url("https://github.com/honr-app/honr/pull/1");
-        again.base = Some(crate::model::PullRequestEnd::new("honr-app/honr", "main"));
-        again.head = Some(crate::model::PullRequestEnd::new("honr-app/honr", "honr/card-1"));
+        let mut again = crate::model::PullRequest::from_url("https://github.com/sandboard-app/sandboard/pull/1");
+        again.base = Some(crate::model::PullRequestEnd::new("sandboard-app/sandboard", "main"));
+        again.head = Some(crate::model::PullRequestEnd::new("sandboard-app/sandboard", "sandboard/card-1"));
         b.report_pull_request(t.id, again).unwrap();
         let item = b.get(t.id).unwrap();
         assert_eq!(item.pull_requests.len(), 2);
@@ -9766,14 +9766,14 @@ mod tests {
         let b = Board::new(
             Schema::default(),
             std::env::temp_dir().join(format!(
-                "honr-test-multi-pr-merge-{}.json",
+                "sandboard-test-multi-pr-merge-{}.json",
                 std::process::id()
             )),
         );
         let t = review_leaf(&b, "Wait for both");
         b.report_pull_request(
             t.id,
-            crate::model::PullRequest::from_url("https://github.com/honr-app/honr/pull/10"),
+            crate::model::PullRequest::from_url("https://github.com/sandboard-app/sandboard/pull/10"),
         )
         .unwrap();
         b.report_pull_request(
@@ -9783,7 +9783,7 @@ mod tests {
         .unwrap();
 
         assert!(
-            b.complete_for_merged_pr("https://github.com/honr-app/honr/pull/10", Some(10))
+            b.complete_for_merged_pr("https://github.com/sandboard-app/sandboard/pull/10", Some(10))
                 .is_none(),
             "one merge must not Done the card"
         );
@@ -9806,14 +9806,14 @@ mod tests {
         let b = Board::new(
             Schema::default(),
             std::env::temp_dir().join(format!(
-                "honr-test-multi-pr-bounce-{}.json",
+                "sandboard-test-multi-pr-bounce-{}.json",
                 std::process::id()
             )),
         );
         let t = review_leaf(&b, "Bounce one");
         b.report_pull_request(
             t.id,
-            crate::model::PullRequest::from_url("https://github.com/honr-app/honr/pull/20"),
+            crate::model::PullRequest::from_url("https://github.com/sandboard-app/sandboard/pull/20"),
         )
         .unwrap();
         b.report_pull_request(
@@ -9821,7 +9821,7 @@ mod tests {
             crate::model::PullRequest::from_url("https://github.com/other/widgets/pull/21"),
         )
         .unwrap();
-        b.complete_for_merged_pr("https://github.com/honr-app/honr/pull/20", Some(20));
+        b.complete_for_merged_pr("https://github.com/sandboard-app/sandboard/pull/20", Some(20));
 
         let id = b
             .apply_pr_review_feedback(
@@ -9850,12 +9850,12 @@ mod tests {
             "origin": {"kind": "human"},
             "created_at": "2026-01-01T00:00:00Z",
             "entered_state_at": "2026-01-01T00:00:00Z",
-            "pull_request": {"url": "https://github.com/honr-app/honr/pull/3"}
+            "pull_request": {"url": "https://github.com/sandboard-app/sandboard/pull/3"}
         }"#;
         let mut item: WorkItem = serde_json::from_str(json).unwrap();
         item.migrate_legacy_pr_url();
         assert_eq!(item.pull_requests.len(), 1);
-        assert_eq!(item.pr_url(), Some("https://github.com/honr-app/honr/pull/3"));
+        assert_eq!(item.pr_url(), Some("https://github.com/sandboard-app/sandboard/pull/3"));
     }
 
     #[test]
@@ -9863,7 +9863,7 @@ mod tests {
         let b = Board::new(
             Schema::default(),
             std::env::temp_dir().join(format!(
-                "honr-test-oldest-unmerged-{}.json",
+                "sandboard-test-oldest-unmerged-{}.json",
                 std::process::id()
             )),
         );
@@ -9874,7 +9874,7 @@ mod tests {
             t.id,
             vec![
                 crate::model::PullRequest {
-                    url: "https://github.com/honr-app/honr/pull/30".into(),
+                    url: "https://github.com/sandboard-app/sandboard/pull/30".into(),
                     reported_at: Some(old),
                     ..Default::default()
                 },
@@ -9891,7 +9891,7 @@ mod tests {
             age >= Duration::minutes(110),
             "oldest unmerged should be ~2h, got {age:?}"
         );
-        b.complete_for_merged_pr("https://github.com/honr-app/honr/pull/30", Some(30));
+        b.complete_for_merged_pr("https://github.com/sandboard-app/sandboard/pull/30", Some(30));
         let item = b.get(t.id).unwrap();
         let age = item.oldest_unmerged_age(Utc::now());
         assert!(
@@ -9908,7 +9908,7 @@ mod tests {
         let b = Arc::new(Board::new(
             Schema::default(),
             std::env::temp_dir().join(format!(
-                "honr-test-pr-review-feedback-{}.json",
+                "sandboard-test-pr-review-feedback-{}.json",
                 std::process::id()
             )),
         ));
@@ -9939,7 +9939,7 @@ mod tests {
         let _ = b.transition(t.id, State::Claimed, "agent", None);
         let _ = b.transition(t.id, State::Running, "agent", None);
         let _ = b.transition(t.id, State::Review, "agent", None);
-        let pr = "https://github.com/honr-app/honr/pull/261/";
+        let pr = "https://github.com/sandboard-app/sandboard/pull/261/";
         b.set_pr_url(t.id, Some(pr.into()));
         // Proposal must be cleared like human request_changes — set via propose
         // is blocked when a PR exists, so plant one directly then apply feedback.
@@ -9964,7 +9964,7 @@ mod tests {
 
         let id = b
             .apply_pr_review_feedback(
-                "https://GitHub.com/honr-app/honr/pull/261",
+                "https://GitHub.com/sandboard-app/sandboard/pull/261",
                 Some(261),
                 "CHANGES_REQUESTED",
             )
@@ -9996,7 +9996,7 @@ mod tests {
         // Idempotent: already Backlog — not matched again.
         assert!(
             b.apply_pr_review_feedback(
-                "https://github.com/honr-app/honr/pull/261",
+                "https://github.com/sandboard-app/sandboard/pull/261",
                 Some(261),
                 "CHANGES_REQUESTED",
             )
@@ -10011,7 +10011,7 @@ mod tests {
         let b = Arc::new(Board::new(
             Schema::default(),
             std::env::temp_dir().join(format!(
-                "honr-test-pr-review-comment-{}.json",
+                "sandboard-test-pr-review-comment-{}.json",
                 std::process::id()
             )),
         ));
@@ -10044,12 +10044,12 @@ mod tests {
         let _ = b.transition(t.id, State::Review, "agent", None);
         b.set_pr_url(
             t.id,
-            Some("https://github.com/honr-app/honr/pull/262".into()),
+            Some("https://github.com/sandboard-app/sandboard/pull/262".into()),
         );
 
         let id = b
             .apply_pr_review_feedback(
-                "https://github.com/honr-app/honr/pull/262",
+                "https://github.com/sandboard-app/sandboard/pull/262",
                 Some(262),
                 "COMMENT",
             )
@@ -10067,7 +10067,7 @@ mod tests {
         let b = Arc::new(Board::new(
             Schema::default(),
             std::env::temp_dir().join(format!(
-                "honr-test-pr-review-noop-{}.json",
+                "sandboard-test-pr-review-noop-{}.json",
                 std::process::id()
             )),
         ));
@@ -10100,13 +10100,13 @@ mod tests {
         let _ = b.transition(t.id, State::Review, "agent", None);
         b.set_pr_url(
             t.id,
-            Some("https://github.com/honr-app/honr/pull/263".into()),
+            Some("https://github.com/sandboard-app/sandboard/pull/263".into()),
         );
         let notes_before = b.get(t.id).unwrap().notes.len();
 
         assert!(
             b.apply_pr_review_feedback(
-                "https://github.com/honr-app/honr/pull/263",
+                "https://github.com/sandboard-app/sandboard/pull/263",
                 Some(263),
                 "APPROVED",
             )
@@ -10115,7 +10115,7 @@ mod tests {
         );
         assert!(
             b.apply_pr_review_feedback(
-                "https://github.com/honr-app/honr/pull/263",
+                "https://github.com/sandboard-app/sandboard/pull/263",
                 Some(263),
                 "dismissed",
             )
@@ -10127,7 +10127,7 @@ mod tests {
 
         assert!(
             b.apply_pr_review_feedback(
-                "https://github.com/honr-app/honr/pull/9999",
+                "https://github.com/sandboard-app/sandboard/pull/9999",
                 Some(9999),
                 "CHANGES_REQUESTED",
             )
@@ -10141,7 +10141,7 @@ mod tests {
     fn test_event_sequence_ordering_and_buffer_catchup() {
         let b = Board::new(
             Schema::default(),
-            std::env::temp_dir().join(format!("honr-test-seq-catchup-{}.json", std::process::id())),
+            std::env::temp_dir().join(format!("sandboard-test-seq-catchup-{}.json", std::process::id())),
         )
         .with_buffer_capacity(10);
 
@@ -10223,7 +10223,7 @@ mod tests {
         let b = Arc::new(Board::new(
             Schema::default(),
             std::env::temp_dir().join(format!(
-                "honr-test-approve-next-{}.json",
+                "sandboard-test-approve-next-{}.json",
                 std::process::id()
             )),
         ));
@@ -10323,7 +10323,7 @@ mod tests {
     #[tokio::test]
     async fn test_heal_completed_epics_auto_closes_project_when_child_tasks_done() {
         let path = std::env::temp_dir().join(format!(
-            "honr-test-epic-hygiene-{}.json",
+            "sandboard-test-epic-hygiene-{}.json",
             std::process::id()
         ));
         let b = Arc::new(Board::new(Schema::default(), path));
@@ -10390,7 +10390,7 @@ mod tests {
     fn identify_behind_sibling_prs_after_merge_done_without_blind_rebase_queue() {
         let b = Board::new(
             Schema::default(),
-            std::env::temp_dir().join(format!("honr-test-rebase-{}.json", std::process::id())),
+            std::env::temp_dir().join(format!("sandboard-test-rebase-{}.json", std::process::id())),
         );
         let project = b
             .create(
@@ -10433,7 +10433,7 @@ mod tests {
         b.transition(t1.id, State::Review, "agent", None).unwrap();
         b.set_pr_url(
             t1.id,
-            Some("https://github.com/honr-app/honr/pull/101".into()),
+            Some("https://github.com/sandboard-app/sandboard/pull/101".into()),
         );
 
         b.transition(t2.id, State::Shaping, "test", None).unwrap();
@@ -10442,7 +10442,7 @@ mod tests {
         b.transition(t2.id, State::Review, "agent", None).unwrap();
         b.set_pr_url(
             t2.id,
-            Some("https://github.com/honr-app/honr/pull/102".into()),
+            Some("https://github.com/sandboard-app/sandboard/pull/102".into()),
         );
 
         let behind = b.identify_behind_sibling_prs(t1.id);
@@ -10450,7 +10450,7 @@ mod tests {
         assert_eq!(behind[0].id, t2.id);
 
         let completed_id = b
-            .complete_for_merged_pr("https://github.com/honr-app/honr/pull/101", Some(101))
+            .complete_for_merged_pr("https://github.com/sandboard-app/sandboard/pull/101", Some(101))
             .expect("t1 completed");
         assert_eq!(completed_id, t1.id);
 
@@ -10481,7 +10481,7 @@ mod tests {
     fn notify_main_advanced_leaves_review_as_noop_until_mergeable_observed() {
         let b = Board::new(
             Schema::default(),
-            std::env::temp_dir().join(format!("honr-test-rebase-main-{}.json", std::process::id())),
+            std::env::temp_dir().join(format!("sandboard-test-rebase-main-{}.json", std::process::id())),
         );
         let project = b
             .create(
@@ -10527,10 +10527,10 @@ mod tests {
         b.transition(t2.id, State::Review, "agent", None).unwrap();
         b.set_pr_url(
             t2.id,
-            Some("https://github.com/honr-app/honr/pull/202".into()),
+            Some("https://github.com/sandboard-app/sandboard/pull/202".into()),
         );
 
-        b.notify_main_advanced("honr-app/honr", "refs/heads/main", Some("sha123".into()));
+        b.notify_main_advanced("sandboard-app/sandboard", "refs/heads/main", Some("sha123".into()));
 
         let t2_updated = b.get(t2.id).unwrap();
         assert_eq!(t2_updated.state, State::Review);
@@ -10554,7 +10554,7 @@ mod tests {
         let b = Board::new(
             Schema::default(),
             std::env::temp_dir().join(format!(
-                "honr-test-rebase-tip-no-done-{}.json",
+                "sandboard-test-rebase-tip-no-done-{}.json",
                 std::process::id()
             )),
         );
@@ -10591,7 +10591,7 @@ mod tests {
             .unwrap();
         b.set_pr_url(
             review.id,
-            Some("https://github.com/honr-app/honr/pull/404".into()),
+            Some("https://github.com/sandboard-app/sandboard/pull/404".into()),
         );
 
         assert!(
@@ -10601,7 +10601,7 @@ mod tests {
             "tip-driven identify must include Review PRs without a Done sibling"
         );
 
-        b.notify_main_advanced("honr-app/honr", "refs/heads/main", Some("tipdeadbeef".into()));
+        b.notify_main_advanced("sandboard-app/sandboard", "refs/heads/main", Some("tipdeadbeef".into()));
 
         let after = b.get(review.id).unwrap();
         assert_eq!(after.state, State::Review);
@@ -10617,9 +10617,9 @@ mod tests {
     #[test]
     fn notify_main_advanced_steers_running_without_queuing_review_rebase() {
         let b = Board::new(
-            schema_with_upstream("honr-app/honr"),
+            schema_with_upstream("sandboard-app/sandboard"),
             std::env::temp_dir().join(format!(
-                "honr-test-rebase-review-and-running-{}.json",
+                "sandboard-test-rebase-review-and-running-{}.json",
                 std::process::id()
             )),
         );
@@ -10681,7 +10681,7 @@ mod tests {
             .unwrap();
         b.set_pr_url(
             review.id,
-            Some("https://github.com/honr-app/honr/pull/505".into()),
+            Some("https://github.com/sandboard-app/sandboard/pull/505".into()),
         );
 
         b.transition(running.id, State::Shaping, "test", None)
@@ -10694,7 +10694,7 @@ mod tests {
             .unwrap();
 
         let steered = b.notify_main_advanced(
-            "honr-app/honr",
+            "sandboard-app/sandboard",
             "refs/heads/main",
             Some("bothpaths".into()),
         );
@@ -10748,7 +10748,7 @@ mod tests {
             let b = Board::new(
                 Schema::default(),
                 std::env::temp_dir().join(format!(
-                    "honr-test-merge-done-sibling-{by}-{}.json",
+                    "sandboard-test-merge-done-sibling-{by}-{}.json",
                     std::process::id()
                 )),
             );
@@ -10787,8 +10787,8 @@ mod tests {
                 .unwrap();
 
             for (id, url) in [
-                (merged.id, "https://github.com/honr-app/honr/pull/601"),
-                (sibling.id, "https://github.com/honr-app/honr/pull/602"),
+                (merged.id, "https://github.com/sandboard-app/sandboard/pull/601"),
+                (sibling.id, "https://github.com/sandboard-app/sandboard/pull/602"),
             ] {
                 b.transition(id, State::Shaping, "test", None).unwrap();
                 b.transition(id, State::Backlog, "test", None).unwrap();
@@ -10799,7 +10799,7 @@ mod tests {
 
             let completed = b
                 .complete_for_merged_pr_by(
-                    "https://github.com/honr-app/honr/pull/601",
+                    "https://github.com/sandboard-app/sandboard/pull/601",
                     Some(601),
                     by,
                 )
@@ -10834,8 +10834,8 @@ mod tests {
     #[test]
     fn notify_main_advanced_steers_running_cards_with_fetch_rebase_note() {
         let b = Board::new(
-            schema_with_upstream("honr-app/honr"),
-            std::env::temp_dir().join(format!("honr-test-main-steer-{}.json", std::process::id())),
+            schema_with_upstream("sandboard-app/sandboard"),
+            std::env::temp_dir().join(format!("sandboard-test-main-steer-{}.json", std::process::id())),
         );
         let project = b
             .create(
@@ -10894,7 +10894,7 @@ mod tests {
             .unwrap();
 
         let steered = b.notify_main_advanced(
-            "honr-app/honr",
+            "sandboard-app/sandboard",
             "refs/heads/main",
             Some("abcdeadbeef".into()),
         );
@@ -10956,9 +10956,9 @@ mod tests {
     #[test]
     fn notify_main_advanced_parks_and_unparks_running_so_steer_takes_effect() {
         let b = Board::new(
-            schema_with_upstream("honr-app/honr"),
+            schema_with_upstream("sandboard-app/sandboard"),
             std::env::temp_dir().join(format!(
-                "honr-test-main-park-unpark-{}.json",
+                "sandboard-test-main-park-unpark-{}.json",
                 std::process::id()
             )),
         );
@@ -10992,10 +10992,10 @@ mod tests {
             .unwrap();
         b.transition(running.id, State::Running, "agent", None)
             .unwrap();
-        b.set_environment(running.id, Some("honr-card-150-sandbox".into()));
+        b.set_environment(running.id, Some("sandboard-card-150-sandbox".into()));
         b.set_conversation_id(running.id, Some("conv-main-adv".into()));
 
-        b.notify_main_advanced("honr-app/honr", "refs/heads/main", Some("def456abc".into()));
+        b.notify_main_advanced("sandboard-app/sandboard", "refs/heads/main", Some("def456abc".into()));
 
         let after = b.get(running.id).unwrap();
         assert_eq!(after.state, State::Backlog);
@@ -11006,7 +11006,7 @@ mod tests {
         assert!(!after.parked);
         assert_eq!(
             after.environment.as_deref(),
-            Some("honr-card-150-sandbox"),
+            Some("sandboard-card-150-sandbox"),
             "sandbox environment must survive park+unpark"
         );
         assert_eq!(
@@ -11038,9 +11038,9 @@ mod tests {
     #[test]
     fn notify_main_advanced_coalesce_skips_double_bounce_same_sha() {
         let b = Board::new(
-            schema_with_upstream("honr-app/honr"),
+            schema_with_upstream("sandboard-app/sandboard"),
             std::env::temp_dir().join(format!(
-                "honr-test-main-coalesce-same-{}.json",
+                "sandboard-test-main-coalesce-same-{}.json",
                 std::process::id()
             )),
         );
@@ -11074,11 +11074,11 @@ mod tests {
             .unwrap();
         b.transition(running.id, State::Running, "agent", None)
             .unwrap();
-        b.set_environment(running.id, Some("honr-card-coalesce-sandbox".into()));
+        b.set_environment(running.id, Some("sandboard-card-coalesce-sandbox".into()));
         b.set_conversation_id(running.id, Some("conv-coalesce".into()));
 
         let sha = "cccccccccccccccccccccccccccccccccccccccc";
-        let steered = b.notify_main_advanced("honr-app/honr", "refs/heads/main", Some(sha.into()));
+        let steered = b.notify_main_advanced("sandboard-app/sandboard", "refs/heads/main", Some(sha.into()));
         assert_eq!(steered, vec![running.id]);
 
         let after_first = b.get(running.id).unwrap();
@@ -11090,7 +11090,7 @@ mod tests {
         assert_eq!(steer_notes_after_first, 1);
 
         let steered_again =
-            b.notify_main_advanced("honr-app/honr", "refs/heads/main", Some(sha.into()));
+            b.notify_main_advanced("sandboard-app/sandboard", "refs/heads/main", Some(sha.into()));
         assert!(
             steered_again.is_empty(),
             "same sha within dispatch window must not re-steer"
@@ -11112,7 +11112,7 @@ mod tests {
         );
         assert_eq!(
             after_second.environment.as_deref(),
-            Some("honr-card-coalesce-sandbox")
+            Some("sandboard-card-coalesce-sandbox")
         );
         assert_eq!(
             after_second.conversation_id.as_deref(),
@@ -11123,9 +11123,9 @@ mod tests {
     #[test]
     fn notify_main_advanced_coalesce_refreshes_note_on_new_sha_without_second_bounce() {
         let b = Board::new(
-            schema_with_upstream("honr-app/honr"),
+            schema_with_upstream("sandboard-app/sandboard"),
             std::env::temp_dir().join(format!(
-                "honr-test-main-coalesce-new-{}.json",
+                "sandboard-test-main-coalesce-new-{}.json",
                 std::process::id()
             )),
         );
@@ -11159,15 +11159,15 @@ mod tests {
             .unwrap();
         b.transition(running.id, State::Running, "agent", None)
             .unwrap();
-        b.set_environment(running.id, Some("honr-card-coalesce2-sandbox".into()));
+        b.set_environment(running.id, Some("sandboard-card-coalesce2-sandbox".into()));
         b.set_conversation_id(running.id, Some("conv-coalesce2".into()));
 
         let sha1 = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
         let sha2 = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
-        b.notify_main_advanced("honr-app/honr", "refs/heads/main", Some(sha1.into()));
+        b.notify_main_advanced("sandboard-app/sandboard", "refs/heads/main", Some(sha1.into()));
 
         let steered_again =
-            b.notify_main_advanced("honr-app/honr", "refs/heads/main", Some(sha2.into()));
+            b.notify_main_advanced("sandboard-app/sandboard", "refs/heads/main", Some(sha2.into()));
         assert_eq!(steered_again, vec![running.id]);
 
         let after = b.get(running.id).unwrap();
@@ -11194,7 +11194,7 @@ mod tests {
         );
         assert_eq!(
             after.environment.as_deref(),
-            Some("honr-card-coalesce2-sandbox")
+            Some("sandboard-card-coalesce2-sandbox")
         );
         assert_eq!(
             after.conversation_id.as_deref(),
@@ -11213,7 +11213,7 @@ mod tests {
         let b = Board::new(
             Schema::default(),
             std::env::temp_dir().join(format!(
-                "honr-test-main-skip-cross-{}.json",
+                "sandboard-test-main-skip-cross-{}.json",
                 std::process::id()
             )),
         );
@@ -11253,7 +11253,7 @@ mod tests {
         );
 
         let steered = b.notify_main_advanced(
-            "honr-app/honr",
+            "sandboard-app/sandboard",
             "refs/heads/main",
             Some("crossskipsha".into()),
         );
@@ -11274,7 +11274,7 @@ mod tests {
         let b = Board::new(
             Schema::default(),
             std::env::temp_dir().join(format!(
-                "honr-test-main-review-scope-{}.json",
+                "sandboard-test-main-review-scope-{}.json",
                 std::process::id()
             )),
         );
@@ -11289,10 +11289,10 @@ mod tests {
                 None,
             )
             .unwrap();
-        let honr_review = b
+        let sandboard_review = b
             .create(
                 Some(project.id),
-                "Honr Review",
+                "Sandboard Review",
                 "intent",
                 Some("dod".into()),
                 Origin::Human,
@@ -11312,7 +11312,7 @@ mod tests {
             )
             .unwrap();
         for (id, url) in [
-            (honr_review.id, "https://github.com/honr-app/honr/pull/701"),
+            (sandboard_review.id, "https://github.com/sandboard-app/sandboard/pull/701"),
             (other_review.id, "https://github.com/other/widgets/pull/702"),
         ] {
             b.transition(id, State::Shaping, "test", None).unwrap();
@@ -11322,9 +11322,9 @@ mod tests {
             b.set_pr_url(id, Some(url.into()));
         }
 
-        let scoped = b.identify_review_prs_for_main_advanced("honr-app/honr");
+        let scoped = b.identify_review_prs_for_main_advanced("sandboard-app/sandboard");
         assert_eq!(scoped.len(), 1);
-        assert_eq!(scoped[0].id, honr_review.id);
+        assert_eq!(scoped[0].id, sandboard_review.id);
 
         let other_scope = b.identify_review_prs_for_main_advanced("other/widgets");
         assert_eq!(other_scope.len(), 1);
@@ -11336,7 +11336,7 @@ mod tests {
         let b = Board::new(
             Schema::default(),
             std::env::temp_dir().join(format!(
-                "honr-test-rebase-clean-{}.json",
+                "sandboard-test-rebase-clean-{}.json",
                 std::process::id()
             )),
         );
@@ -11369,7 +11369,7 @@ mod tests {
         b.transition(t1.id, State::Review, "agent", None).unwrap();
         b.set_pr_url(
             t1.id,
-            Some("https://github.com/honr-app/honr/pull/301".into()),
+            Some("https://github.com/sandboard-app/sandboard/pull/301".into()),
         );
 
         b.dispatch_rebase(t1.id).unwrap();
@@ -11396,7 +11396,7 @@ mod tests {
         let b = Board::new(
             Schema::default(),
             std::env::temp_dir().join(format!(
-                "honr-test-rebase-conflict-{}.json",
+                "sandboard-test-rebase-conflict-{}.json",
                 std::process::id()
             )),
         );
@@ -11429,7 +11429,7 @@ mod tests {
         b.transition(t1.id, State::Review, "agent", None).unwrap();
         b.set_pr_url(
             t1.id,
-            Some("https://github.com/honr-app/honr/pull/302".into()),
+            Some("https://github.com/sandboard-app/sandboard/pull/302".into()),
         );
 
         b.dispatch_rebase(t1.id).unwrap();
@@ -11463,7 +11463,7 @@ mod tests {
         let b = Board::new(
             Schema::default(),
             std::env::temp_dir().join(format!(
-                "honr-test-report-clear-bounce-{}.json",
+                "sandboard-test-report-clear-bounce-{}.json",
                 std::process::id()
             )),
         );
@@ -11524,7 +11524,7 @@ mod tests {
         let b = Board::new(
             Schema::default(),
             std::env::temp_dir().join(format!(
-                "honr-test-rebase-conflict-repeat-{}.json",
+                "sandboard-test-rebase-conflict-repeat-{}.json",
                 std::process::id()
             )),
         );
@@ -11557,7 +11557,7 @@ mod tests {
         b.transition(t1.id, State::Review, "agent", None).unwrap();
         b.set_pr_url(
             t1.id,
-            Some("https://github.com/honr-app/honr/pull/303".into()),
+            Some("https://github.com/sandboard-app/sandboard/pull/303".into()),
         );
 
         // First conflict -> Backlog
@@ -11598,7 +11598,7 @@ mod tests {
         let b = Board::new(
             Schema::default(),
             std::env::temp_dir().join(format!(
-                "honr-test-rebase-conflict-disjoint-{}.json",
+                "sandboard-test-rebase-conflict-disjoint-{}.json",
                 std::process::id()
             )),
         );
@@ -11631,7 +11631,7 @@ mod tests {
         b.transition(t1.id, State::Review, "agent", None).unwrap();
         b.set_pr_url(
             t1.id,
-            Some("https://github.com/honr-app/honr/pull/304".into()),
+            Some("https://github.com/sandboard-app/sandboard/pull/304".into()),
         );
 
         // First conflict -> Backlog
@@ -11696,7 +11696,7 @@ mod tests {
     fn first_sandbox_profile_becomes_default_and_cockpit_inherits() {
         let b = Board::new(
             Schema::default(),
-            std::env::temp_dir().join("honr-test-sbx-first.json"),
+            std::env::temp_dir().join("sandboard-test-sbx-first.json"),
         );
         assert!(b.list_sandbox_profiles().is_empty());
         let p = upsert_test_profile(&b, "default", "Default", "seed-image:test");
@@ -11714,7 +11714,7 @@ mod tests {
         let b = Board::new(
             Schema::default(),
             std::env::temp_dir().join(format!(
-                "honr-test-sbx-cockpit-override-{}",
+                "sandboard-test-sbx-cockpit-override-{}",
                 std::process::id()
             )),
         );
@@ -11739,7 +11739,7 @@ mod tests {
         let b = Board::new(
             Schema::default(),
             std::env::temp_dir().join(format!(
-                "honr-test-ghapp-rename-{}",
+                "sandboard-test-ghapp-rename-{}",
                 std::process::id()
             )),
         );
@@ -11777,7 +11777,7 @@ mod tests {
         use crate::secrets::{open_string_map, seal_github_app, GitHubAppBundle};
 
         let dir = std::env::temp_dir().join(format!(
-            "honr-test-ghapp-seal-migrate-{}",
+            "sandboard-test-ghapp-seal-migrate-{}",
             std::process::id()
         ));
         let _ = std::fs::create_dir_all(&dir);
@@ -11823,7 +11823,7 @@ mod tests {
         let b = Board::new(
             Schema::default(),
             std::env::temp_dir().join(format!(
-                "honr-test-sbx-prune-attach-{}",
+                "sandboard-test-sbx-prune-attach-{}",
                 std::process::id()
             )),
         );
@@ -11876,7 +11876,7 @@ mod tests {
     fn workspace_binding_seeds_forge_when_unbound() {
         let b = Board::new(
             Schema::default(),
-            std::env::temp_dir().join(format!("honr-test-ws-seed-{}.json", std::process::id())),
+            std::env::temp_dir().join(format!("sandboard-test-ws-seed-{}.json", std::process::id())),
         );
         assert!(b.workspace_binding().is_none());
         assert!(b.seed_workspace_binding_from(&agents_with_repo()));
@@ -11890,7 +11890,7 @@ mod tests {
         let b2 = Board::new(
             schema,
             std::env::temp_dir().join(format!(
-                "honr-test-ws-yaml-repo-{}.json",
+                "sandboard-test-ws-yaml-repo-{}.json",
                 std::process::id()
             )),
         );
@@ -11903,7 +11903,7 @@ mod tests {
     fn agents_overlay_is_yaml_passthrough_without_workspace_remotes() {
         let b = Board::new(
             Schema::default(),
-            std::env::temp_dir().join(format!("honr-test-ws-fail-{}.json", std::process::id())),
+            std::env::temp_dir().join(format!("sandboard-test-ws-fail-{}.json", std::process::id())),
         );
         assert!(
             b.yaml_work_repo().is_none(),
@@ -11939,7 +11939,7 @@ mod tests {
         let b = Board::new(
             schema,
             std::env::temp_dir().join(format!(
-                "honr-test-agent-rt-seed-{}.json",
+                "sandboard-test-agent-rt-seed-{}.json",
                 std::process::id()
             )),
         );
@@ -11958,7 +11958,7 @@ mod tests {
         let other = Board::new(
             Schema::default(),
             std::env::temp_dir().join(format!(
-                "honr-test-agent-rt-from-{}.json",
+                "sandboard-test-agent-rt-from-{}.json",
                 std::process::id()
             )),
         );
@@ -11998,7 +11998,7 @@ mod tests {
         schema.execution.agents.repo.base = "develop".into();
         let b = Board::new(
             schema,
-            std::env::temp_dir().join(format!("honr-test-resolve-pr-{}.json", std::process::id())),
+            std::env::temp_dir().join(format!("sandboard-test-resolve-pr-{}.json", std::process::id())),
         );
         b.set_workspace_binding(WorkspaceBinding {
             forge: "github".into(),
@@ -12045,7 +12045,7 @@ mod tests {
         let b = Board::new(
             Schema::default(),
             std::env::temp_dir().join(format!(
-                "honr-test-resolve-prbind-{}.json",
+                "sandboard-test-resolve-prbind-{}.json",
                 std::process::id()
             )),
         );
@@ -12073,7 +12073,7 @@ mod tests {
                 )),
                 head: Some(crate::model::PullRequestEnd::new(
                     "bot/widgets",
-                    "honr/card-1",
+                    "sandboard/card-1",
                 )),
                 ..Default::default()
             }),
@@ -12090,7 +12090,7 @@ mod tests {
         let b = Board::new(
             Schema::default(),
             std::env::temp_dir().join(format!(
-                "honr-test-resolve-unbound-{}.json",
+                "sandboard-test-resolve-unbound-{}.json",
                 std::process::id()
             )),
         );
@@ -12116,7 +12116,7 @@ mod tests {
         let b = Board::new(
             Schema::default(),
             std::env::temp_dir().join(format!(
-                "honr-test-resolve-task-repo-{}.json",
+                "sandboard-test-resolve-task-repo-{}.json",
                 std::process::id()
             )),
         );
@@ -12154,7 +12154,7 @@ mod tests {
         let b = Board::new(
             Schema::default(),
             std::env::temp_dir().join(format!(
-                "honr-test-resolve-pr-wins-{}.json",
+                "sandboard-test-resolve-pr-wins-{}.json",
                 std::process::id()
             )),
         );
@@ -12191,7 +12191,7 @@ mod tests {
                 )),
                 head: Some(crate::model::PullRequestEnd::new(
                     "bot/widgets",
-                    "honr/card-1",
+                    "sandboard/card-1",
                 )),
                 ..Default::default()
             }),
@@ -12209,7 +12209,7 @@ mod tests {
         let b = Board::new(
             Schema::default(),
             std::env::temp_dir().join(format!(
-                "honr-test-resolve-siblings-{}.json",
+                "sandboard-test-resolve-siblings-{}.json",
                 std::process::id()
             )),
         );
@@ -12251,7 +12251,7 @@ mod tests {
             Some(crate::model::PullRequest {
                 url: "https://github.com/acme/frontend/pull/1".into(),
                 base: Some(crate::model::PullRequestEnd::new("acme/frontend", "main")),
-                head: Some(crate::model::PullRequestEnd::new("acme/frontend", "honr/a")),
+                head: Some(crate::model::PullRequestEnd::new("acme/frontend", "sandboard/a")),
                 ..Default::default()
             }),
         );
@@ -12260,7 +12260,7 @@ mod tests {
             Some(crate::model::PullRequest {
                 url: "https://github.com/acme/backend/pull/2".into(),
                 base: Some(crate::model::PullRequestEnd::new("acme/backend", "develop")),
-                head: Some(crate::model::PullRequestEnd::new("bot/backend", "honr/c")),
+                head: Some(crate::model::PullRequestEnd::new("bot/backend", "sandboard/c")),
                 ..Default::default()
             }),
         );
@@ -12281,7 +12281,7 @@ mod tests {
         let b = Board::new(
             Schema::default(),
             std::env::temp_dir().join(format!(
-                "honr-test-resolve-preclone-{}.json",
+                "sandboard-test-resolve-preclone-{}.json",
                 std::process::id()
             )),
         );
@@ -12304,7 +12304,7 @@ mod tests {
             Some(crate::model::PullRequest {
                 url: "https://github.com/acme/widgets/pull/1".into(),
                 base: Some(crate::model::PullRequestEnd::new("acme/widgets", "main")),
-                head: Some(crate::model::PullRequestEnd::new("acme/widgets", "honr/t")),
+                head: Some(crate::model::PullRequestEnd::new("acme/widgets", "sandboard/t")),
                 ..Default::default()
             }),
         );
@@ -12358,7 +12358,7 @@ mod tests {
         let b = Board::new(
             Schema::default(),
             std::env::temp_dir().join(format!(
-                "honr-test-multi-pr-complete-{}.json",
+                "sandboard-test-multi-pr-complete-{}.json",
                 std::process::id()
             )),
         );
@@ -12411,10 +12411,10 @@ mod tests {
 
     #[test]
     fn workspace_binding_persists_in_json_roundtrip() {
-        let dir = std::env::temp_dir().join(format!("honr-test-ws-persist-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("sandboard-test-ws-persist-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
-        let path = dir.join("honr.json");
+        let path = dir.join("sandboard.json");
         {
             let mut schema = Schema::default();
             schema.execution.agents = agents_with_repo();
@@ -12445,7 +12445,7 @@ mod tests {
     #[test]
     fn task_repo_persists_in_json_roundtrip_and_snapshot() {
         let dir = std::env::temp_dir().join(format!(
-            "honr-test-task-repo-persist-{}",
+            "sandboard-test-task-repo-persist-{}",
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
@@ -12453,7 +12453,7 @@ mod tests {
         ));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
-        let path = dir.join("honr.json");
+        let path = dir.join("sandboard.json");
         let task_id = {
             let b = Board::new(Schema::default(), path.clone());
             let project = b
@@ -12523,7 +12523,7 @@ mod tests {
         let b = Board::new(
             Schema::default(),
             std::env::temp_dir().join(format!(
-                "honr-test-project-no-repo-{}.json",
+                "sandboard-test-project-no-repo-{}.json",
                 std::process::id()
             )),
         );
@@ -12572,7 +12572,7 @@ mod tests {
         let b = Board::new(
             Schema::default(),
             std::env::temp_dir().join(format!(
-                "honr-test-task-repo-empty-{}.json",
+                "sandboard-test-task-repo-empty-{}.json",
                 std::process::id()
             )),
         );
@@ -12617,7 +12617,7 @@ mod tests {
     #[test]
     fn resolve_policy_yaml_ignores_host_paths_for_create_defaults() {
         let dir = std::env::temp_dir().join(format!(
-            "honr-test-sbx-no-host-{}",
+            "sandboard-test-sbx-no-host-{}",
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
@@ -12642,7 +12642,7 @@ mod tests {
     fn sandbox_profiles_set_default_and_project_override() {
         let b = Board::new(
             Schema::default(),
-            std::env::temp_dir().join("honr-test-sbx-override.json"),
+            std::env::temp_dir().join("sandboard-test-sbx-override.json"),
         );
         upsert_test_profile(&b, "default", "Default", "seed-image:test");
         let heavy = b
@@ -12697,7 +12697,7 @@ mod tests {
     fn attach_providers_come_from_profile_list_only() {
         let b = Board::new(
             Schema::default(),
-            std::env::temp_dir().join(format!("honr-test-attach-profile-{}", std::process::id())),
+            std::env::temp_dir().join(format!("sandboard-test-attach-profile-{}", std::process::id())),
         );
         upsert_test_profile(&b, "default", "Default", "seed-image:test");
         b.upsert_openshell_provider(OpenShellProviderDesired {
@@ -12753,7 +12753,7 @@ mod tests {
     fn sandbox_profiles_refuse_delete_when_in_use_by_project() {
         let b = Board::new(
             Schema::default(),
-            std::env::temp_dir().join("honr-test-sbx-delete.json"),
+            std::env::temp_dir().join("sandboard-test-sbx-delete.json"),
         );
         upsert_test_profile(&b, "default", "Default", "seed-image:test");
         b.upsert_sandbox_profile(SandboxProfile {
@@ -12797,7 +12797,7 @@ mod tests {
     #[test]
     fn sandbox_profiles_round_trip_json_flush_load() {
         let path = std::env::temp_dir().join(format!(
-            "honr-test-sbx-json-{}.json",
+            "sandboard-test-sbx-json-{}.json",
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
@@ -12870,7 +12870,7 @@ mod tests {
         let b = Board::new(
             schema,
             std::env::temp_dir().join(format!(
-                "honr-test-sbx-resolve-store-{}.json",
+                "sandboard-test-sbx-resolve-store-{}.json",
                 std::process::id()
             )),
         );
@@ -12965,7 +12965,7 @@ mod tests {
         let b = Board::new(
             schema,
             std::env::temp_dir().join(format!(
-                "honr-test-engine-resolve-{}.json",
+                "sandboard-test-engine-resolve-{}.json",
                 std::process::id()
             )),
         );
@@ -13025,7 +13025,7 @@ mod tests {
         let b = Board::new(
             schema,
             std::env::temp_dir().join(format!(
-                "honr-test-engine-fallback-{}.json",
+                "sandboard-test-engine-fallback-{}.json",
                 std::process::id()
             )),
         );
@@ -13074,7 +13074,7 @@ mod tests {
         let b = Board::new(
             Schema::default(),
             std::env::temp_dir().join(format!(
-                "honr-test-model-resolve-{}",
+                "sandboard-test-model-resolve-{}",
                 std::process::id()
             )),
         );
@@ -13131,7 +13131,7 @@ mod tests {
         let b = Board::new(
             Schema::default(),
             std::env::temp_dir().join(format!(
-                "honr-test-model-default-{}",
+                "sandboard-test-model-default-{}",
                 std::process::id()
             )),
         );
@@ -13179,7 +13179,7 @@ mod tests {
         let b = Board::new(
             Schema::default(),
             std::env::temp_dir().join(format!(
-                "honr-test-cockpit-model-{}",
+                "sandboard-test-cockpit-model-{}",
                 std::process::id()
             )),
         );
@@ -13235,7 +13235,7 @@ mod tests {
     fn sandbox_profiles_create_without_id_slugs_from_name() {
         let b = Board::new(
             Schema::default(),
-            std::env::temp_dir().join("honr-test-sbx-slug.json"),
+            std::env::temp_dir().join("sandboard-test-sbx-slug.json"),
         );
         upsert_test_profile(&b, "default", "Default", "seed-image:test");
 
@@ -13310,7 +13310,7 @@ mod tests {
     #[test]
     fn migrate_sandbox_policies_path_to_inline_then_catalog() {
         let dir = std::env::temp_dir().join(format!(
-            "honr-test-sbx-migrate-{}",
+            "sandboard-test-sbx-migrate-{}",
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
@@ -13372,7 +13372,7 @@ mod tests {
         let b = Board::new(
             Schema::default(),
             std::env::temp_dir().join(format!(
-                "honr-test-policies-crud-{}",
+                "sandboard-test-policies-crud-{}",
                 std::process::id()
             )),
         );
@@ -13420,7 +13420,7 @@ mod tests {
         let b = Board::new(
             Schema::default(),
             std::env::temp_dir().join(format!(
-                "honr-test-mcp-catalog-{}.json",
+                "sandboard-test-mcp-catalog-{}.json",
                 std::process::id()
             )),
         );
@@ -13431,10 +13431,10 @@ mod tests {
         {
             let mut s = b.state.write();
             s.mcp_servers.insert(
-                HONR_MCP_SERVER_ID.into(),
+                SANDBOARD_MCP_SERVER_ID.into(),
                 McpServerDesired {
-                    id: HONR_MCP_SERVER_ID.into(),
-                    name: "honr".into(),
+                    id: SANDBOARD_MCP_SERVER_ID.into(),
+                    name: "sandboard".into(),
                     transport: McpTransport::Http {
                         url: String::new(),
                         auth: McpHttpAuth::CockpitBearer,
@@ -13448,7 +13448,7 @@ mod tests {
             );
         }
         assert!(b.ensure_shipped_mcp_servers());
-        let migrated = b.get_mcp_server(HONR_MCP_SERVER_ID).expect("honr");
+        let migrated = b.get_mcp_server(SANDBOARD_MCP_SERVER_ID).expect("sandboard");
         assert!(matches!(
             migrated.transport,
             McpTransport::Stdio { ref command, ref args, cwd: None }
@@ -13505,10 +13505,10 @@ network_policies:
         let resolved = b.resolve_cockpit_sandbox_create();
         assert!(resolved.policy.contains("huggingface.co"));
         assert_eq!(resolved.providers, vec!["gcp-adc".to_string()]);
-        // Cockpit always gets shipped honr even when the profile only listed cnv.
+        // Cockpit always gets shipped sandboard even when the profile only listed cnv.
         assert_eq!(
             resolved.mcp_server_ids,
-            vec!["honr".to_string(), "cnv".to_string()]
+            vec!["sandboard".to_string(), "cnv".to_string()]
         );
         let worker = {
             let project = b
@@ -13517,7 +13517,7 @@ network_policies:
             b.resolve_sandbox_create(project.id)
         };
         assert_eq!(worker.mcp_server_ids, vec!["cnv".to_string()]);
-        // Cockpit Bearer honr must not attach to workers even if listed.
+        // Cockpit Bearer sandboard must not attach to workers even if listed.
         b.upsert_sandbox_profile(SandboxProfile {
             id: "default".into(),
             name: "Default".into(),
@@ -13529,7 +13529,7 @@ network_policies:
             engine: Some("cursor".into()),
             model: None,
             provider_names: Vec::new(),
-            mcp_server_ids: vec!["honr".into(), "cnv".into()],
+            mcp_server_ids: vec!["sandboard".into(), "cnv".into()],
             env: Default::default(),
             prompt: None,
             shipped: false,
@@ -13544,11 +13544,11 @@ network_policies:
     }
 
     #[test]
-    fn ensure_cockpit_honr_mcp_attach_seeds_profile_and_resolve() {
+    fn ensure_cockpit_sandboard_mcp_attach_seeds_profile_and_resolve() {
         let b = Board::new(
             Schema::default(),
             std::env::temp_dir().join(format!(
-                "honr-test-cockpit-honr-attach-{}",
+                "sandboard-test-cockpit-sandboard-attach-{}",
                 std::process::id()
             )),
         );
@@ -13577,18 +13577,18 @@ network_policies:
             .into_iter()
             .find(|p| p.id == "cockpit")
             .expect("cockpit profile");
-        assert_eq!(profile.mcp_server_ids, vec!["honr".to_string()]);
-        assert!(!b.ensure_cockpit_honr_mcp_attach());
+        assert_eq!(profile.mcp_server_ids, vec!["sandboard".to_string()]);
+        assert!(!b.ensure_cockpit_sandboard_mcp_attach());
         let resolved = b.resolve_cockpit_sandbox_create();
-        assert_eq!(resolved.mcp_server_ids, vec!["honr".to_string()]);
+        assert_eq!(resolved.mcp_server_ids, vec!["sandboard".to_string()]);
     }
 
     #[test]
-    fn upsert_cockpit_profile_refuses_to_drop_shipped_honr() {
+    fn upsert_cockpit_profile_refuses_to_drop_shipped_sandboard() {
         let b = Board::new(
             Schema::default(),
             std::env::temp_dir().join(format!(
-                "honr-test-cockpit-honr-locked-{}",
+                "sandboard-test-cockpit-sandboard-locked-{}",
                 std::process::id()
             )),
         );
@@ -13604,7 +13604,7 @@ network_policies:
             engine: Some("cursor".into()),
             model: None,
             provider_names: Vec::new(),
-            mcp_server_ids: vec!["honr".into()],
+            mcp_server_ids: vec!["sandboard".into()],
             env: Default::default(),
             prompt: None,
             shipped: false,
@@ -13628,11 +13628,11 @@ network_policies:
             prompt: None,
             shipped: false,
             })
-            .expect("upsert without honr");
+            .expect("upsert without sandboard");
         assert_eq!(
             stored.mcp_server_ids,
-            vec!["honr".to_string()],
-            "cockpit upsert must keep shipped honr"
+            vec!["sandboard".to_string()],
+            "cockpit upsert must keep shipped sandboard"
         );
     }
 
@@ -13641,7 +13641,7 @@ network_policies:
         let b = Board::new(
             Schema::default(),
             std::env::temp_dir().join(format!(
-                "honr-test-minimal-seed-{}",
+                "sandboard-test-minimal-seed-{}",
                 std::process::id()
             )),
         );
@@ -13666,7 +13666,7 @@ network_policies:
         let b = Board::new(
             Schema::default(),
             std::env::temp_dir().join(format!(
-                "honr-test-shipped-sandbox-profiles-{}",
+                "sandboard-test-shipped-sandbox-profiles-{}",
                 std::process::id()
             )),
         );
@@ -13685,7 +13685,7 @@ network_policies:
             assert!(p.model.is_none(), "seeded profiles must not set model: {p:?}");
             assert!(p.image.contains(&format!("sandbox-{engine}")), "{p:?}");
             assert!(
-                p.mcp_server_ids.iter().any(|m| m == "honr"),
+                p.mcp_server_ids.iter().any(|m| m == "sandboard"),
                 "cockpit MCP must be attached: {p:?}"
             );
             assert!(p.shipped, "{p:?}");
@@ -13708,7 +13708,7 @@ network_policies:
     #[test]
     fn migrate_inline_policy_boards_losslessly_on_load() {
         let path = std::env::temp_dir().join(format!(
-            "honr-test-inline-migrate-load-{}.json",
+            "sandboard-test-inline-migrate-load-{}.json",
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()

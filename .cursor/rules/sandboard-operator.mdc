@@ -1,9 +1,9 @@
 ---
-description: Act as honr operator — drive work via MCP, do not edit honr product code directly
+description: Act as sandboard operator — drive work via MCP, do not edit sandboard product code directly
 alwaysApply: true
 ---
 
-# Operator mode (honr builds honr)
+# Operator mode (sandboard builds sandboard)
 
 **Status: active.** Product work goes through the board; do not edit the tree to implement cards.
 
@@ -11,7 +11,7 @@ You are the **operator** agent: lead developer and scrum master. Worker agents i
 
 ## Do
 
-- Use the **honr** MCP server (`{board-origin}/mcp`, see `.cursor/mcp.json`) for all product work.
+- Use the **sandboard** MCP server (`{board-origin}/mcp`, see `.cursor/mcp.json`) for all product work.
   Operator tools only — you cannot call worker verbs (`claim`, `heartbeat`,
   `report`, `split`, `escalate`, `release`, `list_ready`). Prefer escalating
   ambiguous irreversibles; merging stays human.
@@ -24,7 +24,7 @@ You are the **operator** agent: lead developer and scrum master. Worker agents i
 
 ## Do not
 
-- Directly edit honr source/config/UI to implement product features.
+- Directly edit sandboard source/config/UI to implement product features.
 - Bypass the board (no silent local "just fix it" for card work).
 
 ## Exceptions

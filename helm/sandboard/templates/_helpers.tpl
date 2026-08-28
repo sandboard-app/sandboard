@@ -1,14 +1,14 @@
 {{/*
 Expand the name of the chart.
 */}}
-{{- define "honr.name" -}}
+{{- define "sandboard.name" -}}
 {{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
 {{/*
 Fully qualified app name.
 */}}
-{{- define "honr.fullname" -}}
+{{- define "sandboard.fullname" -}}
 {{- if .Values.fullnameOverride }}
 {{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" }}
 {{- else }}
@@ -24,19 +24,19 @@ Fully qualified app name.
 {{/*
 Common labels
 */}}
-{{- define "honr.labels" -}}
-helm.sh/chart: {{ include "honr.name" . }}-{{ .Chart.Version | replace "+" "_" }}
-app.kubernetes.io/name: {{ include "honr.name" . }}
+{{- define "sandboard.labels" -}}
+helm.sh/chart: {{ include "sandboard.name" . }}-{{ .Chart.Version | replace "+" "_" }}
+app.kubernetes.io/name: {{ include "sandboard.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{- end }}
 
 {{/*
-Selector labels for the honr Deployment
+Selector labels for the sandboard Deployment
 */}}
-{{- define "honr.selectorLabels" -}}
-app.kubernetes.io/name: {{ include "honr.name" . }}
+{{- define "sandboard.selectorLabels" -}}
+app.kubernetes.io/name: {{ include "sandboard.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 app.kubernetes.io/component: board
 {{- end }}
@@ -44,8 +44,8 @@ app.kubernetes.io/component: board
 {{/*
 Selector labels for Postgres
 */}}
-{{- define "honr.postgres.selectorLabels" -}}
-app.kubernetes.io/name: {{ include "honr.name" . }}
+{{- define "sandboard.postgres.selectorLabels" -}}
+app.kubernetes.io/name: {{ include "sandboard.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 app.kubernetes.io/component: postgres
 {{- end }}
@@ -53,13 +53,13 @@ app.kubernetes.io/component: postgres
 {{/*
 Secret name holding master key + database URL
 */}}
-{{- define "honr.secretName" -}}
-{{ include "honr.fullname" . }}-secrets
+{{- define "sandboard.secretName" -}}
+{{ include "sandboard.fullname" . }}-secrets
 {{- end }}
 
 {{/*
 Postgres Service DNS name (in-cluster)
 */}}
-{{- define "honr.postgres.serviceName" -}}
-{{ include "honr.fullname" . }}-postgres
+{{- define "sandboard.postgres.serviceName" -}}
+{{ include "sandboard.fullname" . }}-postgres
 {{- end }}

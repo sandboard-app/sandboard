@@ -110,7 +110,7 @@ mod tests {
         let b = Arc::new(
             Board::new(
                 Schema::default(),
-                std::env::temp_dir().join(format!("honr-sse-test-{}.json", std::process::id())),
+                std::env::temp_dir().join(format!("sandboard-sse-test-{}.json", std::process::id())),
             )
             .with_buffer_capacity(2),
         );

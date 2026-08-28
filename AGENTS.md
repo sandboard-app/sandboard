@@ -1,13 +1,13 @@
 # AGENTS.md
 
 Orientation for the **operator** agent sitting with the human. If you are an
-agent honr dispatched to work on a card, you already have a briefing — ignore
+agent sandboard dispatched to work on a card, you already have a briefing — ignore
 this file.
 
-**Operator mode:** drive honr via MCP (`{board-origin}/mcp`) — operator tools
+**Operator mode:** drive sandboard via MCP (`{board-origin}/mcp`) — operator tools
 only; no worker verbs. Do not implement product work by editing this tree;
 shape Projects/Plans, triage Needs You / Review, let sandboxed workers open PRs.
-See [`.cursor/rules/honr-operator.mdc`](.cursor/rules/honr-operator.mdc).
+See [`.cursor/rules/sandboard-operator.mdc`](.cursor/rules/sandboard-operator.mdc).
 
 Start with [`docs/index.md`](docs/index.md) and
 [`docs/concepts.md`](docs/concepts.md).
@@ -15,8 +15,8 @@ Start with [`docs/index.md`](docs/index.md) and
 ## What this is
 
 An agent orchestrator that dispatches work against **its own source**. Moving a
-card *is* an action. honr claims a card, runs an agent in an OpenShell sandbox,
-and the agent opens a same-repo PR (`honr/card-*` → `main`) that a human merges.
+card *is* an action. sandboard claims a card, runs an agent in an OpenShell sandbox,
+and the agent opens a same-repo PR (`sandboard/card-*` → `main`) that a human merges.
 
 ## The invariants worth protecting
 
@@ -25,18 +25,18 @@ and the agent opens a same-repo PR (`honr/card-*` → `main`) that a human merge
 yourself encoding a rule in `api.rs` or `mcp.rs`, it belongs in `machine.rs` or
 `store.rs` instead.
 
-**Workers cannot reach honr.** The card agent gets no network path to honr. The
+**Workers cannot reach sandboard.** The card agent gets no network path to sandboard. The
 supervisor calls `claim`/`heartbeat`/`report` on its behalf. An agent that
 could reach the board’s MCP could approve its own review.
 
 **Liveness is observed.** It is parsed from the agent's output stream. Do not
 add a timer-based keepalive — it would assert liveness without evidence.
 
-**Merging is human.** Approving in honr surfaces the PR. It does not merge.
+**Merging is human.** Approving in sandboard surfaces the PR. It does not merge.
 
 **Feature branches are writable; `main` is human-gated.** The GitHub ruleset
 keeps the default branch owner-only. Agents use the App installation on
-`shanemcd` with `fork` = `upstream` = `honr-app/honr`, push `honr/card-*`, and
+`shanemcd` with `fork` = `upstream` = `sandboard-app/sandboard`, push `sandboard/card-*`, and
 open PRs; humans merge.
 
 ## Conventions
@@ -57,7 +57,7 @@ shell quoting, config validation. Prefer a test that names the
 failure it prevents over one that names the function it calls.
 
 Before you finish: `cargo test` and `cargo clippy --all-targets -- -D warnings`
-must both be clean. A card's sandbox has no pre-baked honr build cache —
+must both be clean. A card's sandbox has no pre-baked sandboard build cache —
 `cargo`/`npm` reach crates.io/npm live — so `--offline` no longer applies
 there; `--locked` still does.
 

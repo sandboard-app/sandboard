@@ -9,14 +9,14 @@ export function OperatorGuide() {
   const mcpUrl = publicMcpUrl();
   const cursorMcpJson = `{
   "mcpServers": {
-    "honr": {
+    "sandboard": {
       "type": "http",
       "url": "${mcpUrl}",
-      "auth": { "CLIENT_ID": "honr-cursor", "scopes": ["mcp"] }
+      "auth": { "CLIENT_ID": "sandboard-cursor", "scopes": ["mcp"] }
     }
   }
 }`;
-  const claudeMcpAdd = `claude mcp add --transport http honr ${mcpUrl}`;
+  const claudeMcpAdd = `claude mcp add --transport http sandboard ${mcpUrl}`;
 
   return (
     <div className="operator-guide" data-testid="operator-guide">
@@ -75,7 +75,7 @@ export function OperatorGuide() {
       >
         <h2 id="operator-guide-config-title">Configuration and standing instructions</h2>
         <p className="dim">
-          honr stacks setup in layers. Lower layers are operator concerns; agents
+          sandboard stacks setup in layers. Lower layers are operator concerns; agents
           read the board standing prompt, optional <code>project_prompt</code>, and
           card prose at claim time.
         </p>
@@ -104,7 +104,7 @@ export function OperatorGuide() {
         </ol>
         <p className="dim" data-testid="operator-guide-quality-gates-note">
           Name test/lint quality gates in the board standing prompt when they
-          apply everywhere. honr does not assume <code>cargo</code> or any
+          apply everywhere. sandboard does not assume <code>cargo</code> or any
           toolchain unless standing text or a card&apos;s DoD names it.
         </p>
       </section>
@@ -118,11 +118,11 @@ export function OperatorGuide() {
         <p className="dim">
           Drive the board from an MCP client: create Projects, create Tasks
           under a Project (<code>create_task</code>), triage, dispatch, park,
-          steer, and approve. Start honr before adding the server.
+          steer, and approve. Start sandboard before adding the server.
         </p>
         <ol className="operator-guide-steps" data-testid="operator-guide-mcp-steps">
           <li>
-            Start honr so it is listening (API + MCP share the board origin).
+            Start sandboard so it is listening (API + MCP share the board origin).
           </li>
           <li>
             Point your client at the Streamable HTTP endpoint:
@@ -137,7 +137,7 @@ export function OperatorGuide() {
             Transport is <strong>Streamable HTTP</strong> (not stdio).
           </li>
           <li>
-            Add an MCP server named <code>honr</code> at that URL.
+            Add an MCP server named <code>sandboard</code> at that URL.
           </li>
           <li>
             After local admin exists, authenticate via MCP OAuth (browser login /
@@ -145,7 +145,7 @@ export function OperatorGuide() {
           </li>
         </ol>
         <p className="dim" data-testid="operator-guide-mcp-empty-tools">
-          Tokens survive a honr restart. If the tools list stays empty, reload
+          Tokens survive a sandboard restart. If the tools list stays empty, reload
           the client.
         </p>
 
@@ -156,11 +156,11 @@ export function OperatorGuide() {
           <h3>Client examples</h3>
           <p className="dim">
             Optional — same Streamable HTTP endpoint and server name{" "}
-            <code>honr</code> in any MCP client.
+            <code>sandboard</code> in any MCP client.
           </p>
           <p className="operator-guide-example-label">
             Cursor — <code>.cursor/mcp.json</code>, then Tools &amp; MCP →
-            Authenticate / Connect (or <code>agent mcp login honr</code>)
+            Authenticate / Connect (or <code>agent mcp login sandboard</code>)
           </p>
           <pre
             className="operator-guide-snippet"
@@ -186,7 +186,7 @@ export function OperatorGuide() {
         <h2 id="operator-guide-openshell-title">OpenShell + sandbox</h2>
         <p className="dim">
           Before agents can run, connect the OpenShell gateway and set up
-          providers plus a sandbox spec. Paste credentials in Settings — honr
+          providers plus a sandbox spec. Paste credentials in Settings — sandboard
           does not find them on the host for you.
         </p>
         <ol

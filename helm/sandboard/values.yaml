@@ -1,6 +1,6 @@
-# honr board image (API + built UI)
+# sandboard board image (API + built UI)
 image:
-  repository: quay.io/honr-app/honr
+  repository: quay.io/sandboard-app/sandboard
   tag: latest
   # Always — :latest + IfNotPresent leaves a stale node cache after push.
   pullPolicy: Always
@@ -11,15 +11,15 @@ replicaCount: 1
 
 # Tailscale Ingress — set per deploy (do not commit personal *.ts.net names).
 # hostname is the short MagicDNS label; the operator appends .<tailnet>.ts.net.
-# publicUrl is HONR_PUBLIC_URL (MCP Host allow-list + OpenShell OIDC
+# publicUrl is SANDBOARD_PUBLIC_URL (MCP Host allow-list + OpenShell OIDC
 # redirect_uri = {publicUrl}/oauth/openshell/callback). Must match the
 # resolved Tailscale URL. When you change it, also add that callback (and the
 # origin) to Keycloak realm `openshell` client `openshell-cli` redirectUris /
 # webOrigins — Keycloak rejects anything not on that allow-list.
 #
-#   helm upgrade --install honr ./helm/honr -n honr \
-#     --set ingress.hostname=my-honr \
-#     --set ingress.publicUrl=https://my-honr.<tailnet>.ts.net
+#   helm upgrade --install sandboard ./helm/sandboard -n sandboard \
+#     --set ingress.hostname=my-sandboard \
+#     --set ingress.publicUrl=https://my-sandboard.<tailnet>.ts.net
 ingress:
   enabled: true
   hostname: ""
@@ -38,8 +38,8 @@ resources:
 # Board Postgres (single-replica StatefulSet in this chart)
 postgres:
   image: docker.io/library/postgres:16-alpine
-  user: honr
-  database: honr
+  user: sandboard
+  database: sandboard
   # Empty → chart generates and stores in Secret (stable across upgrades).
   password: ""
   persistence:
@@ -54,6 +54,6 @@ postgres:
       memory: 512Mi
 
 # Empty → chart generates a fresh 64-hex-char key and stores it in Secret.
-# Do not reuse the host ~/.config/honr/master.key unless you intentionally
+# Do not reuse the host ~/.config/sandboard/master.key unless you intentionally
 # want to decrypt Settings sealed on that machine.
 masterKey: ""

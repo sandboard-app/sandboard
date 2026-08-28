@@ -2,9 +2,9 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: {{ include "honr.fullname" . }}
+  name: {{ include "sandboard.fullname" . }}
   labels:
-    {{- include "honr.labels" . | nindent 4 }}
+    {{- include "sandboard.labels" . | nindent 4 }}
   annotations:
     # Same pattern as keycloak / openshell — Tailscale operator provisions a
     # dedicated tailnet device and TLS for this hostname.
@@ -18,7 +18,7 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: {{ include "honr.fullname" . }}
+                name: {{ include "sandboard.fullname" . }}
                 port:
                   number: {{ .Values.service.port }}
   tls:

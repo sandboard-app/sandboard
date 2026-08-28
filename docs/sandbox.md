@@ -1,7 +1,7 @@
 # Sandbox
 
 How a sandboxed agent run works, and the operator-relevant gotchas. Assets live
-under [`sandbox/`](https://github.com/honr-app/honr/tree/main/sandbox); this page is the prose companion.
+under [`sandbox/`](https://github.com/sandboard-app/sandboard/tree/main/sandbox); this page is the prose companion.
 
 ## How credentials reach the agent
 
@@ -32,7 +32,7 @@ openshell provider create --name vertex --type google-vertex-ai --from-gcloud-ad
 openshell inference set --provider vertex --model claude-sonnet-4-6@default
 ```
 
-Inside the sandbox honr exports (engine-specific):
+Inside the sandbox sandboard exports (engine-specific):
 
 | Engine | `ANTHROPIC_BASE_URL` | Notes |
 |---|---|---|
@@ -57,14 +57,14 @@ an explicit auth mode:
   uses `openshell-sdk` OIDC helpers.
 
 Endpoint must be `https://`. The only host secret file is
-`~/.config/honr/master.key`. Upload/download use exec + tar over that same
+`~/.config/sandboard/master.key`. Upload/download use exec + tar over that same
 channel — no `openshell` CLI spawn. We build the tonic channel ourselves and use
 `openshell-core` / `openshell-policy` for protos and YAML policy.
 
 ## Agent surface
 
 Card intent and protocol paths come from the supervisor briefing (and files
-under `/sandbox/.honr`). Agents finish via `plan.json` / `report.json` /
+under `/sandbox/.sandboard`). Agents finish via `plan.json` / `report.json` /
 `escalate.json` / `split.json`. The board is the only tracker — sandboxes do
 not carry a separate issue-store CLI or database.
 
@@ -77,7 +77,7 @@ in the UI; they round-trip on the profile API. Details and resolution live under
 
 ### Create-time env overlay
 
-At sandbox create (card path and Cockpit), honr builds the OpenShell create env
+At sandbox create (card path and Cockpit), sandboard builds the OpenShell create env
 as:
 
 1. **`agent_env(engine)`** — toolchain / seat defaults the supervisor always
@@ -110,7 +110,7 @@ Put seat wiring on the live board's sandbox specs — for example an API base UR
 in `env` and short usage notes in `prompt`. Do **not** hardcode product-specific
 CLIs or cluster tooling (MicroShift / `oc`, kubeconfig writers, PATH wrappers,
 post-Ready setup scripts) into the binary or supervisor; those stay out of
-scope of honr itself.
+scope of sandboard itself.
 
 ## Model selection
 
@@ -119,10 +119,10 @@ Which model an agent run uses depends on the engine.
 | Engine | How model is chosen | Operator configures |
 |---|---|---|
 | `agy` | `card.model` → sandbox spec **model** → `DEFAULT_SEAT_MODEL` (`gemini-3.6-flash-high`) | Optional **Model** on **Settings → OpenShell → Sandbox specs**; per-card `model` on claim overrides the spec |
-| `cursor` | `card.model` → sandbox spec **model** → Cursor account default (no honr fallback) | Same optional **Model** field; omit it to use the account default for your API key |
+| `cursor` | `card.model` → sandbox spec **model** → Cursor account default (no sandboard fallback) | Same optional **Model** field; omit it to use the account default for your API key |
 | `claude`, `opencode` | OpenShell `inference.local` — gateway route from `openshell inference set` | Gateway CLI once per install (see [How credentials reach the agent](#how-credentials-reach-the-agent)); **not** the sandbox spec model field |
 
-For engines whose CLI accepts `--model` on launch, honr injects the resolved
+For engines whose CLI accepts `--model` on launch, sandboard injects the resolved
 value into the supervisor start script and Cockpit attach/chat argv. Today that
 is `agy` and `cursor` (`agent --model`). Put `--model` **before** `-p` when
 invoking agy manually — `-p` takes the next argv as the prompt.
@@ -133,7 +133,7 @@ time. The card badge and Detail pane show the resolved model when known.
 
 ## Image
 
-[`sandbox/Containerfile`](https://github.com/honr-app/honr/blob/main/sandbox/Containerfile) builds honr's own base — a
+[`sandbox/Containerfile`](https://github.com/sandboard-app/sandboard/blob/main/sandbox/Containerfile) builds sandboard's own base — a
 minimal Red Hat UBI9 image, not the OpenShell community image — plus a Rust
 toolchain, split into one build target per agent engine. A `shared` stage
 installs OS packages (`git`, `nodejs`/`npm`, `gh`, `gcc`/`make`, `iproute`,
@@ -141,7 +141,7 @@ installs OS packages (`git`, `nodejs`/`npm`, `gh`, `gcc`/`make`, `iproute`,
 engine (`cursor`, `agy`, `claude`, `opencode`) installs only that engine's CLI
 on top — a sandbox only ever carries the one binary it will actually run.
 
-The toolchain is baked in, but honr's own source and dependency tree are not.
+The toolchain is baked in, but sandboard's own source and dependency tree are not.
 A card's own `cargo build`/`npm ci` populate `$CARGO_HOME` (`/opt/cargo`),
 `$CARGO_TARGET_DIR` (`/opt/cargo-target`), and `$NPM_CONFIG_CACHE`
 (`/opt/npm-cache`) at runtime by fetching crates.io/npm live — there is no
@@ -151,11 +151,11 @@ means the matching Policy has to allow that egress; see
 
 Why UBI9 instead of the OpenShell community image: that image bakes in every
 supported agent CLI, a Python/uv/cloudpickle skills venv, and Ubuntu
-convenience tooling honr never touches, regardless of which engine-specific
+convenience tooling sandboard never touches, regardless of which engine-specific
 target you build. OpenShell's own documented minimum for a custom sandbox
 image is just `iproute2` (required) and `nftables` (optional) — see
 `examples/bring-your-own-container/Dockerfile` in the OpenShell source.
-Building from `ubi9/ubi` plus exactly what honr needs cuts each image from
+Building from `ubi9/ubi` plus exactly what sandboard needs cuts each image from
 ~15GB (the community-base version) to under 2GB.
 
 OpenShift restricted SCC ignores image `USER` and runs as a random UID in
@@ -167,15 +167,15 @@ prohibited GID 0`). Local runs use owner bits; OpenShift uses group 0 bits.
 
 ```bash
 # from the repo root
-make sandbox        # builds all four quay.io/honr-app/sandbox-<engine>:latest
+make sandbox        # builds all four quay.io/sandboard-app/sandbox-<engine>:latest
 make sandbox-push   # builds, then pushes all four
-# or: podman build -f sandbox/Containerfile --target cursor -t quay.io/honr-app/sandbox-cursor:latest .
+# or: podman build -f sandbox/Containerfile --target cursor -t quay.io/sandboard-app/sandbox-cursor:latest .
 # Docker: CONTAINER_ENGINE=docker make sandbox
 # Different registry: REGISTRY=ghcr.io/you make sandbox
 ```
 
 The image flag is `--from`, not `--image`. Rebuild when you need a newer
-engine CLI, OS package, or Rust toolchain version — not when honr's own source
+engine CLI, OS package, or Rust toolchain version — not when sandboard's own source
 changes, since none of it is baked in. Matching `/opt` entries belong in the
 **board Policies** catalog (Settings → OpenShell → Policies):
 `/opt/cargo`, `/opt/cargo-target`, `/opt/npm-cache` need **read-write** (a
@@ -219,7 +219,7 @@ tip, prefer the local card branch (not a hard reset to `origin/`), and rebase
 only when the tree is clean. Dirty mid-run edits stay put — MainAdvanced steer
 asks the agent to rebase. Otherwise it ensures the directory without clearing
 prior contents or caches. The supervisor never clones; the agent does.
-`/sandbox/.honr` is always present at start with at least `report.schema.json`.
+`/sandbox/.sandboard` is always present at start with at least `report.schema.json`.
 If a clean-tree reuse rebase conflicts, the supervisor backs out and tells the
 agent to resolve it.
 
@@ -234,7 +234,7 @@ helper paths (e.g. `/usr/lib/git-core/git-remote-http`).
 
 Four sandbox specs come seeded — `sandbox-cursor`, `sandbox-agy`,
 `sandbox-claude`, `sandbox-opencode` — one per split image, each pointed at a
-matching minimal Cockpit policy (`cockpit-cursor`, …) with honr MCP already
+matching minimal Cockpit policy (`cockpit-cursor`, …) with sandboard MCP already
 attached. Seeding never sets a default — which engine to run is your call, and
 a fresh board's Welcome page flags "Sandbox spec" as not ready until you make
 it. Pick one under **Settings → OpenShell → Sandbox specs** and click **Set
@@ -244,11 +244,11 @@ not overwrites — editing one sticks; a re-seed on the next boot leaves your
 edit alone.
 
 Attach on create starts empty for a profile you make yourself — add providers
-under **Providers**, then check them on the spec. Add honr MCP /
+under **Providers**, then check them on the spec. Add sandboard MCP /
 package-registry / toolchain egress under **Policies** when you need it.
 
 Cockpit MCP does **not** use `host.docker.internal` and does not cross the
-network at all. When the seat is Ready, honr keeps a board-owned
+network at all. When the seat is Ready, sandboard keeps a board-owned
 `ExecSandboxInteractive` relay running one-shot `socat UNIX-LISTEN:… STDIO`
 on a local Unix socket inside the sandbox, and wires its gRPC-piped
 stdin/stdout straight into the same `Operator` MCP handler that serves host
@@ -263,10 +263,10 @@ see [Cockpit](cockpit.md#how-the-mcp-relay-works) for why.
 
 Bare OpenShell `generic` providers do **not** resolve
 `openshell:resolve:…` placeholders — the egress proxy only substitutes on
-endpoints declared by a **provider type**. Honr ships board provider types
-[`sandbox/openshell/antigravity.yaml`](https://github.com/honr-app/honr/blob/main/sandbox/openshell/antigravity.yaml)
+endpoints declared by a **provider type**. Sandboard ships board provider types
+[`sandbox/openshell/antigravity.yaml`](https://github.com/sandboard-app/sandboard/blob/main/sandbox/openshell/antigravity.yaml)
 (`auth_style: bearer`, Cloud Code / Google API hosts) and
-[`sandbox/openshell/cursor-agent.yaml`](https://github.com/honr-app/honr/blob/main/sandbox/openshell/cursor-agent.yaml)
+[`sandbox/openshell/cursor-agent.yaml`](https://github.com/sandboard-app/sandboard/blob/main/sandbox/openshell/cursor-agent.yaml)
 (`CURSOR_API_KEY`, Bearer on Cursor API hosts). Both seed into
 **Settings → OpenShell → Provider types** and import on provider Sync when
 missing. Builtin OpenShell `cursor` remains egress-only (no credentials).
@@ -274,7 +274,7 @@ missing. Builtin OpenShell `cursor` remains egress-only (no credentials).
 Under **Settings → OpenShell → Providers**, use **Log in with Google** on the
 `antigravity` provider (host-mediated PKCE against Google’s Antigravity
 installed-app client). That seals the access token plus refresh material on the
-board; the gateway’s `oauth2_refresh_token` strategy keeps `ya29` fresh. honr
+board; the gateway’s `oauth2_refresh_token` strategy keeps `ya29` fresh. sandboard
 does not read the host keychain — it makes no assumptions about credentials
 sitting on the machine it runs on.
 

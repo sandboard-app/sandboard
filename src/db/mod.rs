@@ -1,7 +1,7 @@
 //! Pluggable board database (SQLx).
 //!
 //! Persistence: `Board` boots from SQLite (default) or Postgres via
-//! [`DurableBoardStore`] and flushes row updates. `honr.json` is a one-shot
+//! [`DurableBoardStore`] and flushes row updates. `sandboard.json` is a one-shot
 //! import source when the DB is empty. Hot list/snapshot/lease paths use
 //! denormalized columns and indexed SQL (`query_*` on [`BoardStore`]); agent
 //! engines stay unchanged.
@@ -173,14 +173,14 @@ mod tests {
     #[tokio::test]
     async fn connect_sqlite_migrated_creates_file_db() {
         let dir = std::env::temp_dir().join(format!(
-            "honr-db-migrate-{}",
+            "sandboard-db-migrate-{}",
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
                 .as_nanos()
         ));
         std::fs::create_dir_all(&dir).unwrap();
-        let path = dir.join("honr.db");
+        let path = dir.join("sandboard.db");
         let url = format!("sqlite:{}", path.display());
         let pool = connect_sqlite_migrated(&url).await.expect("connect+migrate");
         let count: i64 = sqlx::query("SELECT COUNT(*) AS c FROM sqlite_master WHERE type='table'")
@@ -207,22 +207,22 @@ mod tests {
         ));
     }
 
-    /// When `HONR_TEST_DATABASE_URL` is a reachable `postgres://` / `postgresql://`
+    /// When `SANDBOARD_TEST_DATABASE_URL` is a reachable `postgres://` / `postgresql://`
     /// URL, apply migrations there. Offline CI leaves the env unset and skips.
     #[tokio::test]
     async fn migrations_apply_to_postgres_when_available() {
-        let url = match std::env::var("HONR_TEST_DATABASE_URL") {
+        let url = match std::env::var("SANDBOARD_TEST_DATABASE_URL") {
             Ok(u) if !u.trim().is_empty() => u,
             _ => {
-                eprintln!("skipping: set HONR_TEST_DATABASE_URL to exercise Postgres migrations");
+                eprintln!("skipping: set SANDBOARD_TEST_DATABASE_URL to exercise Postgres migrations");
                 return;
             }
         };
-        let parsed = parse_database_url(&url).expect("HONR_TEST_DATABASE_URL must parse");
+        let parsed = parse_database_url(&url).expect("SANDBOARD_TEST_DATABASE_URL must parse");
         assert_eq!(
             parsed.backend(),
             DatabaseBackend::Postgres,
-            "HONR_TEST_DATABASE_URL must be postgres:// or postgresql://"
+            "SANDBOARD_TEST_DATABASE_URL must be postgres:// or postgresql://"
         );
 
         let pool = connect_postgres_migrated(parsed.as_str())

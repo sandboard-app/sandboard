@@ -3,7 +3,7 @@
 Inputs to `src/openshell.rs` and `src/supervisor.rs`. How a run works and what
 breaks if you change them: [`docs/sandbox.md`](../docs/sandbox.md).
 
-Card context is briefing-only (`/sandbox/.honr` contracts); see
+Card context is briefing-only (`/sandbox/.sandboard` contracts); see
 [`docs/sandbox.md`](../docs/sandbox.md).
 
 ## Worker network policy (board Policies)
@@ -26,7 +26,7 @@ minimal Cockpit policy per engine (`cockpit-cursor`, `cockpit-agy`,
 plus GitHub App `GH_TOKEN` and crates.io/npm registry egress (a card's own
 `cargo build`/`npm ci` fetch live; there is no baked-in dependency cache) —
 matched to a seeded Sandbox spec (`sandbox-cursor`, …) that already selects
-it. Host honr MCP is stdio over a local Unix socket (`socat`, see
+it. Host sandboard MCP is stdio over a local Unix socket (`socat`, see
 `src/cockpit_mcp_tunnel.rs`) — no network hop, so no policy entry for it. Edit
 the live seeded Policy under Settings → OpenShell → Policies if these
 defaults don't match your install — a re-seed on the next boot never
@@ -34,7 +34,7 @@ overwrites an edited row.
 
 ## `Containerfile`
 
-Builds honr's own minimal base — Red Hat UBI9, not the OpenShell community
+Builds sandboard's own minimal base — Red Hat UBI9, not the OpenShell community
 image — plus a Rust toolchain. Multi-stage: a `shared` stage installs OS
 packages (`git`, `nodejs`/`npm`, `gh`, `gcc`/`make`, `iproute`, `nftables`,
 `socat`) and `cargo`/`clippy`, then one leaf stage per agent engine (`cursor`,
@@ -48,7 +48,7 @@ and `agent` is Permission denied. Writable paths are group-owned by 0 with
 `g=u` so the random UID can write; the named `sandbox` user is **not** in
 GID 0, because OpenShell's local podman driver refuses that membership.
 
-The toolchain is baked in; honr's own source and dependency cache are not — a
+The toolchain is baked in; sandboard's own source and dependency cache are not — a
 card's own `cargo build`/`npm ci` populate `/opt/cargo`, `/opt/cargo-target`,
 and `/opt/npm-cache` at runtime by fetching crates.io/npm live. Full rationale
 (including why UBI9 over the community image) in
@@ -57,7 +57,7 @@ and `/opt/npm-cache` at runtime by fetching crates.io/npm live. Full rationale
 Build from the **repo root**, not this directory:
 
 ```bash
-podman build -f sandbox/Containerfile --target cursor -t quay.io/honr-app/sandbox-cursor:latest .
+podman build -f sandbox/Containerfile --target cursor -t quay.io/sandboard-app/sandbox-cursor:latest .
 # make sandbox builds all four; make sandbox-push also pushes them.
 ```
 

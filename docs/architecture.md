@@ -30,7 +30,7 @@ UI / MCP / supervisor
 | `src/openshell.rs` | In-process gRPC client to the OpenShell gateway (board endpoint + sealed mTLS); every call has a deadline. |
 | `src/supervisor.rs` | Card dispatch, durable cockpit start/reconcile/stop, briefing, lease sweeping. |
 | `src/engine.rs` | Explicit registry of agent engines — unknown ids fail loud. |
-| Process boot | Database URL via `HONR_DATABASE_URL` (else `sqlite:honr.db`). Hierarchy is compile-time Project + Task. |
+| Process boot | Database URL via `SANDBOARD_DATABASE_URL` (else `sqlite:sandboard.db`). Hierarchy is compile-time Project + Task. |
 | `sandbox/` | Container image; minimal create-form Policy seed lives in `src/seed_policies.rs` (board Policies catalog is live). |
 | `web/` | React UI + Playwright screenshot harness. |
 | `migrations/` | Versioned SQLx migrations for the board store. |
@@ -46,17 +46,17 @@ The supervisor:
    and starts the agent detached.
 5. Parses the output stream for liveness; calls `heartbeat` / `report` on the
    board's behalf.
-6. Sweeps expired leases, and on startup reconciles live sandboxes so a honr
+6. Sweeps expired leases, and on startup reconciles live sandboxes so a sandboard
    restart does not orphan a running agent.
 
 Separately, when a Board **cockpit session** exists, the supervisor creates or
-reuses the cockpit-spec sandbox (`honr.cockpit` label), starts the agent
+reuses the cockpit-spec sandbox (`sandboard.cockpit` label), starts the agent
 detached, reconciles across restart (keeping sandbox and conversation, like
 park), and stops cleanly when the session is cleared. That path never touches
 claim / heartbeat / report / split or the card dispatch queue — the Board's
 `cockpit_session` fields stay authoritative.
 
-The card worker has no network path to honr. The supervisor is the only caller
+The card worker has no network path to sandboard. The supervisor is the only caller
 of worker verbs on the live path.
 
 ## MCP and REST
@@ -84,14 +84,14 @@ without buying server→client streams.
 ## How the CLI attaches
 
 There is no `ConnectSandbox` RPC. `openshell sandbox connect` (a human at a
-terminal, not honr) is a chain:
+terminal, not sandboard) is a chain:
 
 1. `GetSandbox(name)` → `sandbox_id`
 2. `CreateSshSession(sandbox_id)` → short-lived token plus gateway host/port
 3. local `ssh -tt sandbox` with `ProxyCommand=openshell ssh-proxy … --token …`
 4. `ssh-proxy` tunnels via `ForwardTcp`
 
-honr itself never runs this chain — no local `ssh`, no `CreateSshSession`. A
+sandboard itself never runs this chain — no local `ssh`, no `CreateSshSession`. A
 browser cannot complete the OpenSSH ProxyCommand chain anyway, so both the
 in-browser terminal and cockpit's MCP session use `ExecSandboxInteractive`
 directly: the terminal relays it over a WebSocket (see
@@ -102,8 +102,8 @@ its stdin/stdout as an `rmcp` transport instead of tunneling TCP (see
 ## Persistence
 
 SQLx board store — SQLite by default, Postgres optional. Configured by
-`board.database.url` or `HONR_DATABASE_URL`. Mutations flush as row updates,
-with an optional one-shot import from `honr.json` when the database is empty.
+`board.database.url` or `SANDBOARD_DATABASE_URL`. Mutations flush as row updates,
+with an optional one-shot import from `sandboard.json` when the database is empty.
 See [Configuration](configuration.md#board-database).
 
 ## Related

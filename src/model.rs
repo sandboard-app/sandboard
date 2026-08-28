@@ -31,7 +31,7 @@ pub enum State {
     /// Human review of the PR. Mechanical checks belong in CI, not a board column.
     ///
     /// `alias = "verifying"` loads legacy history/boards that used the removed
-    /// Verifying state (honr never ran real gates there).
+    /// Verifying state (sandboard never ran real gates there).
     #[serde(alias = "verifying")]
     Review,
     Done,
@@ -298,17 +298,17 @@ mod initial_plan_title_tests {
 /// the board standing prompt is cleared. Shared agent policy belongs in
 /// Settings → Agent runtime (`standing_prompt`), not here.
 pub const PROTOCOL_MINIMUM: &str = "\
-Merging is a human action — approving in honr surfaces the PR; it never merges.\n\
+Merging is a human action — approving in sandboard surfaces the PR; it never merges.\n\
 Sandbox stack failures present as hangs — treat silence as failure and escalate rather than looping.\n\
 Name the repository to clone in each Task's intent and/or definition of done \
 (`owner/name`, and push remote when it differs). Do not invent an owner/name from context; \
 if the card text is silent or ambiguous, escalate.\n\
-Initial plan: write /sandbox/.honr/plan.json; each proposed task names its \
+Initial plan: write /sandbox/.sandboard/plan.json; each proposed task names its \
 clone target in intent/DoD; human Approve creates Tasks.\n\
-If impl work is bigger than one card, write /sandbox/.honr/split.json (same task shape; name \
+If impl work is bigger than one card, write /sandbox/.sandboard/split.json (same task shape; name \
 clone targets in each child's intent/DoD); card goes to Review — Approve creates siblings. \
 Never nest under a Task.\n\
-When the work is done, write /sandbox/.honr/report.json (url/base/head per report.schema.json) \
+When the work is done, write /sandbox/.sandboard/report.json (url/base/head per report.schema.json) \
 and publish the PR on this card's branch.\n\
 ";
 
@@ -477,7 +477,7 @@ pub struct PlanTaskBrief {
 
 /// Desired OpenShell provider (Settings → OpenShell → Providers).
 ///
-/// Honr is source of truth; Sync/Apply pushes to the gateway via gRPC.
+/// Sandboard is source of truth; Sync/Apply pushes to the gateway via gRPC.
 /// Credential values are sealed — GET APIs expose keys only.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct OpenShellProviderDesired {
@@ -554,7 +554,7 @@ impl OpenShellProviderDesired {
 ///
 /// Empty boards seed from compiled [`Default`]. Board is source of truth after.
 /// Image / policy / cpu / memory live on sandbox profiles; work remotes on
-/// card `pull_requests`. Branch / sandbox names are fixed `honr/card-*` (not
+/// card `pull_requests`. Branch / sandbox names are fixed `sandboard/card-*` (not
 /// a Settings knob).
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct AgentRuntimeConfig {
@@ -634,7 +634,7 @@ impl AgentRuntimeConfig {
 
 /// Settings → Forge: poll GitHub when webhooks are missing or delayed.
 ///
-/// When enabled, honr polls on `interval_secs` **in addition to** webhooks.
+/// When enabled, sandboard polls on `interval_secs` **in addition to** webhooks.
 /// Both paths call the same Board methods (merge → Done, tip → MainAdvanced).
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct WebhookPollConfig {
@@ -694,7 +694,7 @@ pub struct WorkspaceBinding {
     pub forge: String,
 }
 
-/// How honr authenticates to the OpenShell gateway. Explicit Settings choice —
+/// How sandboard authenticates to the OpenShell gateway. Explicit Settings choice —
 /// never inferred from PEMs, tokens, or URL scheme.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -819,7 +819,7 @@ pub enum CockpitSandboxPhase {
 /// record — they must not grow a second lifecycle.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct CockpitSession {
-    /// OpenShell sandbox environment name (e.g. `honr-cockpit`).
+    /// OpenShell sandbox environment name (e.g. `sandboard-cockpit`).
     #[serde(default)]
     pub environment: Option<String>,
     /// agy conversation id for reconnect (`--conversation`).
@@ -896,8 +896,8 @@ pub struct OpenShellPolicy {
     pub yaml: String,
 }
 
-/// Shipped board MCP server id for the host honr Streamable HTTP seat.
-pub const HONR_MCP_SERVER_ID: &str = "honr";
+/// Shipped board MCP server id for the host sandboard Streamable HTTP seat.
+pub const SANDBOARD_MCP_SERVER_ID: &str = "sandboard";
 
 /// Which sandboxes may receive this MCP server.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
@@ -928,8 +928,8 @@ impl McpAudience {
 pub enum McpHttpAuth {
     /// No Authorization header.
     None,
-    /// Host-minted cockpit seat Bearer for the shipped `honr` MCP only.
-    /// Not an operator-facing auth choice — inject/`ensure_cockpit_honr_mcp_attach`
+    /// Host-minted cockpit seat Bearer for the shipped `sandboard` MCP only.
+    /// Not an operator-facing auth choice — inject/`ensure_cockpit_sandboard_mcp_attach`
     /// wire this behind the scenes.
     CockpitBearer,
     /// Host-mediated MCP OAuth: OpenShell provider holds refresh; inject uses
@@ -1039,11 +1039,11 @@ impl McpServerDesired {
                 cwd,
             } => {
                 *command = command.trim().to_string();
-                // Shipped honr placeholder — cockpit_mcp resolves it to the
+                // Shipped sandboard placeholder — cockpit_mcp resolves it to the
                 // `socat - UNIX-CONNECT:<AGENT_SOCK_PATH>` relay client at
                 // inject time, the same way the shipped Http entry leaves
                 // `url` empty.
-                if command.is_empty() && self.id != HONR_MCP_SERVER_ID {
+                if command.is_empty() && self.id != SANDBOARD_MCP_SERVER_ID {
                     return Err("stdio mcp server command must not be empty".into());
                 }
                 *args = args.iter().map(|a| a.to_string()).collect();
@@ -1073,27 +1073,27 @@ impl McpServerDesired {
                 ..
             }
         ) {
-            if self.id != HONR_MCP_SERVER_ID {
+            if self.id != SANDBOARD_MCP_SERVER_ID {
                 return Err(
-                    "cockpit_bearer is reserved for the shipped honr cockpit MCP".into(),
+                    "cockpit_bearer is reserved for the shipped sandboard cockpit MCP".into(),
                 );
             }
             if !matches!(self.audience, McpAudience::Cockpit) {
-                return Err("shipped honr MCP must use cockpit audience".into());
+                return Err("shipped sandboard MCP must use cockpit audience".into());
             }
         }
         Ok(self)
     }
 
-    /// Shipped host honr MCP: stdio over the cockpit sandbox's local
+    /// Shipped host sandboard MCP: stdio over the cockpit sandbox's local
     /// `socat`-over-unix-socket relay (see `cockpit_mcp_tunnel`) — no network
     /// hop, no Bearer. `command` empty is the inject-time placeholder;
     /// `cockpit_mcp::render_*` resolve it the same way they resolve an empty
     /// HTTP `url`.
-    pub fn shipped_honr() -> Self {
+    pub fn shipped_sandboard() -> Self {
         Self {
-            id: HONR_MCP_SERVER_ID.into(),
-            name: "honr".into(),
+            id: SANDBOARD_MCP_SERVER_ID.into(),
+            name: "sandboard".into(),
             transport: McpTransport::Stdio {
                 command: String::new(),
                 args: Vec::new(),
@@ -1110,7 +1110,7 @@ impl McpServerDesired {
 
 /// Named create-spec for OpenShell sandboxes. Board-state catalog entries;
 /// empty catalogs seed from compiled [`crate::schema::AgentConfig::default`]
-/// and embedded policy constants (not from host `honr.yaml` create knobs).
+/// and embedded policy constants (not from host `sandboard.yaml` create knobs).
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct SandboxProfile {
     pub id: String,
@@ -1141,7 +1141,7 @@ pub struct SandboxProfile {
     #[serde(default)]
     pub provider_names: Vec<String>,
     /// MCP server catalog ids to attach (config inject + policy/provider merge).
-    /// Empty = none from the catalog. Cockpit always attaches shipped `honr`
+    /// Empty = none from the catalog. Cockpit always attaches shipped `sandboard`
     /// (profile ensure + resolve + inject) even when omitted here.
     #[serde(default)]
     pub mcp_server_ids: Vec<String>,
@@ -1553,8 +1553,8 @@ pub struct WorkItem {
     /// These vary independently.
     #[serde(default)]
     pub release_target: Option<String>,
-    /// The sandbox this card ran in, e.g. `honr-card-7`. Set by the supervisor
-    /// at creation, and the key that lets a restarted honr find live sandboxes
+    /// The sandbox this card ran in, e.g. `sandboard-card-7`. Set by the supervisor
+    /// at creation, and the key that lets a restarted sandboard find live sandboxes
     /// again instead of orphaning them.
     #[serde(default)]
     pub environment: Option<String>,
@@ -1772,7 +1772,7 @@ mod tests {
         let mut pr = PullRequest::from_url("https://github.com/acme/base/pull/9");
         assert_eq!(pr.push_owner_repo().as_deref(), Some("acme/base"));
         pr.base = Some(PullRequestEnd::new("acme/base", "main"));
-        pr.head = Some(PullRequestEnd::new("forks/base", "honr/card-1"));
+        pr.head = Some(PullRequestEnd::new("forks/base", "sandboard/card-1"));
         assert_eq!(pr.push_owner_repo().as_deref(), Some("forks/base"));
     }
 
@@ -1819,7 +1819,7 @@ mod tests {
     }
 
     #[test]
-    fn cockpit_bearer_reserved_for_shipped_honr() {
+    fn cockpit_bearer_reserved_for_shipped_sandboard() {
         let err = McpServerDesired {
             id: "other".into(),
             name: "Other".into(),
@@ -1836,17 +1836,17 @@ mod tests {
         .normalized()
         .expect_err("foreign cockpit_bearer");
         assert!(err.contains("reserved"), "{err}");
-        McpServerDesired::shipped_honr()
+        McpServerDesired::shipped_sandboard()
             .normalized()
-            .expect("shipped honr ok");
+            .expect("shipped sandboard ok");
     }
 
     #[test]
     fn minimal_sandbox_policy_parses_and_stays_minimal() {
         let policy = crate::seed_policies::MINIMAL_SANDBOX_POLICY;
         assert!(
-            !policy.contains("honr-mcp") && !policy.contains("host.docker.internal"),
-            "create default must not bake honr MCP egress"
+            !policy.contains("sandboard-mcp") && !policy.contains("host.docker.internal"),
+            "create default must not bake sandboard MCP egress"
         );
         assert!(
             !policy.contains("index.crates.io") && !policy.contains("/opt/rust"),
@@ -2012,7 +2012,7 @@ mod tests {
         assert_eq!(resolve_policy_yaml("version: 1\n# inline\n"), "version: 1\n# inline\n");
 
         let dir = std::env::temp_dir().join(format!(
-            "honr-test-resolve-policy-{}",
+            "sandboard-test-resolve-policy-{}",
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()

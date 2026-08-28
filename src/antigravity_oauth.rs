@@ -1,6 +1,6 @@
 //! Host-mediated Google OAuth for the Antigravity (`agy`) OpenShell provider.
 //!
-//! Distinct from [`crate::mcp_client_oauth`] (outbound MCP servers). Here honr
+//! Distinct from [`crate::mcp_client_oauth`] (outbound MCP servers). Here sandboard
 //! is the OAuth client for Google's Antigravity **consumer** installed-app client:
 //! open Google auth → paste the short authorization code from the hosted
 //! callback page → pick a GCP project → seal refresh on board provider
@@ -41,7 +41,7 @@ const PENDING_TTL_SECS: u64 = 600;
 const DEFAULT_RETURN_PATH: &str = "/settings/openshell/providers";
 
 /// Consumer Antigravity client embedded in the CLI (`agy`). Installed-app
-/// credential — not a honr secret. Prefer this over the business client so
+/// credential — not a sandboard secret. Prefer this over the business client so
 /// seat `fetchAvailableModels` rows include `vertexModelId`.
 const AGY_CLIENT_ID: &str =
     "884354919052-36trc1jjb3tguiac32ov6cod268c5blh.apps.googleusercontent.com";

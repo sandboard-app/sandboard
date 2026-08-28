@@ -109,7 +109,7 @@ export interface SandboxProfile {
   model?: string | null;
   /** Providers to attach on sandbox create (`[]` = none). */
   provider_names?: string[];
-  /** MCP server catalog ids to attach (`[]` = none; cockpit always attaches shipped honr). */
+  /** MCP server catalog ids to attach (`[]` = none; cockpit always attaches shipped sandboard). */
   mcp_server_ids?: string[];
   /** Non-secret env overlaid at sandbox create (profile wins on key clash). */
   env?: Record<string, string>;

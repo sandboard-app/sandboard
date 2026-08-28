@@ -1,6 +1,6 @@
 //! Operator authentication: local admin + GitHub App OAuth allowlist.
 //!
-//! `/api` (except webhooks) accepts a `honr_session` cookie **or** HTTP Basic
+//! `/api` (except webhooks) accepts a `sandboard_session` cookie **or** HTTP Basic
 //! with the local admin username/password. `/auth/*`, `/healthz`, and MCP OAuth
 //! discovery/token endpoints stay reachable without a session. `/mcp` itself
 //! uses Bearer tokens (see `mcp_oauth`) once admin exists.
@@ -25,7 +25,7 @@ use sha2::Sha256;
 use std::time::{SystemTime, UNIX_EPOCH};
 use time::Duration as TimeDuration;
 
-const SESSION_COOKIE: &str = "honr_session";
+const SESSION_COOKIE: &str = "sandboard_session";
 const SESSION_TTL_SECS: u64 = 60 * 60 * 24 * 14; // 14 days
 const OAUTH_STATE_TTL_SECS: u64 = 600;
 
@@ -300,7 +300,7 @@ pub fn session_user_from_jar(board: &SharedBoard, jar: &CookieJar) -> Option<Ses
     session_from_jar(board, jar)
 }
 
-/// Mint a `honr_session` cookie value for tests / local tooling.
+/// Mint a `sandboard_session` cookie value for tests / local tooling.
 #[cfg(test)]
 pub fn mint_session_cookie_value(
     board: &SharedBoard,
@@ -797,7 +797,7 @@ async fn github_login(token: &str) -> Result<String, String> {
     let user: User = client
         .get("https://api.github.com/user")
         .header(header::AUTHORIZATION, format!("Bearer {token}"))
-        .header(header::USER_AGENT, "honr")
+        .header(header::USER_AGENT, "sandboard")
         .header(header::ACCEPT, "application/vnd.github+json")
         .send()
         .await
@@ -840,7 +840,7 @@ async fn team_member(token: &str, org: &str, team_slug: &str, username: &str) ->
     let resp = client
         .get(&url)
         .header(header::AUTHORIZATION, format!("Bearer {token}"))
-        .header(header::USER_AGENT, "honr")
+        .header(header::USER_AGENT, "sandboard")
         .header(header::ACCEPT, "application/vnd.github+json")
         .send()
         .await
@@ -1062,7 +1062,7 @@ mod tests {
         let hex = "ef".repeat(32);
         let _env = master_key_env::Guard::with_hex_key(&hex);
         let dir = std::env::temp_dir().join(format!(
-            "honr-auth-boot-{}",
+            "sandboard-auth-boot-{}",
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
@@ -1151,7 +1151,7 @@ mod tests {
         let hex = "a1".repeat(32);
         let _env = master_key_env::Guard::with_hex_key(&hex);
         let dir = std::env::temp_dir().join(format!(
-            "honr-auth-install-{}",
+            "sandboard-auth-install-{}",
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
@@ -1191,7 +1191,7 @@ mod tests {
         let hex = "f0".repeat(32);
         let _env = master_key_env::Guard::with_hex_key(&hex);
         let dir = std::env::temp_dir().join(format!(
-            "honr-auth-gate-{}",
+            "sandboard-auth-gate-{}",
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()

@@ -2,8 +2,8 @@
 //! private key, etc.).
 //!
 //! Ciphertext lives in the board database. The only host file is a 32-byte
-//! master key at `~/.config/honr/master.key` (mode 0600), auto-created on first
-//! use. Override with `HONR_MASTER_KEY_PATH` or `HONR_MASTER_KEY` (64 hex chars)
+//! master key at `~/.config/sandboard/master.key` (mode 0600), auto-created on first
+//! use. Override with `SANDBOARD_MASTER_KEY_PATH` or `SANDBOARD_MASTER_KEY` (64 hex chars)
 //! for tests / alternate installs.
 //!
 //! GET APIs must never return decrypted PEMs / webhook secrets / client secrets
@@ -22,7 +22,7 @@ use std::path::{Path, PathBuf};
 const KEY_LEN: usize = 32;
 const NONCE_LEN: usize = 12;
 /// File magic so we can change the AEAD later without guessing.
-const BLOB_PREFIX: &[u8] = b"honr1";
+const BLOB_PREFIX: &[u8] = b"sandboard1";
 
 #[derive(Debug, thiserror::Error)]
 pub enum SecretsError {
@@ -231,9 +231,9 @@ impl AuthBundle {
     }
 }
 
-/// Resolve the master-key path (tests: `HONR_MASTER_KEY_PATH`).
+/// Resolve the master-key path (tests: `SANDBOARD_MASTER_KEY_PATH`).
 pub fn master_key_path() -> PathBuf {
-    if let Ok(p) = std::env::var("HONR_MASTER_KEY_PATH") {
+    if let Ok(p) = std::env::var("SANDBOARD_MASTER_KEY_PATH") {
         let t = p.trim();
         if !t.is_empty() {
             return PathBuf::from(t);
@@ -241,12 +241,12 @@ pub fn master_key_path() -> PathBuf {
     }
     dirs::config_dir()
         .unwrap_or_else(|| PathBuf::from("."))
-        .join("honr")
+        .join("sandboard")
         .join("master.key")
 }
 
 fn load_or_create_master_key(path: &Path) -> Result<[u8; KEY_LEN], SecretsError> {
-    if let Ok(hex) = std::env::var("HONR_MASTER_KEY") {
+    if let Ok(hex) = std::env::var("SANDBOARD_MASTER_KEY") {
         let hex = hex.trim();
         if !hex.is_empty() {
             return parse_hex_key(hex);
@@ -292,7 +292,7 @@ fn load_or_create_master_key(path: &Path) -> Result<[u8; KEY_LEN], SecretsError>
 fn parse_hex_key(hex: &str) -> Result<[u8; KEY_LEN], SecretsError> {
     if hex.len() != KEY_LEN * 2 {
         return Err(SecretsError::MasterKey(format!(
-            "HONR_MASTER_KEY: expected {} hex chars, got {}",
+            "SANDBOARD_MASTER_KEY: expected {} hex chars, got {}",
             KEY_LEN * 2,
             hex.len()
         )));
@@ -300,7 +300,7 @@ fn parse_hex_key(hex: &str) -> Result<[u8; KEY_LEN], SecretsError> {
     let mut key = [0u8; KEY_LEN];
     for i in 0..KEY_LEN {
         key[i] = u8::from_str_radix(&hex[i * 2..i * 2 + 2], 16).map_err(|e| {
-            SecretsError::MasterKey(format!("HONR_MASTER_KEY: invalid hex: {e}"))
+            SecretsError::MasterKey(format!("SANDBOARD_MASTER_KEY: invalid hex: {e}"))
         })?;
     }
     Ok(key)
@@ -311,7 +311,7 @@ fn cipher(key_bytes: &[u8; KEY_LEN]) -> ChaCha20Poly1305 {
     ChaCha20Poly1305::new(&key)
 }
 
-/// Seal a UTF-8 JSON (or any bytes) payload → `honr1` || nonce || ciphertext, base64.
+/// Seal a UTF-8 JSON (or any bytes) payload → `sandboard1` || nonce || ciphertext, base64.
 pub fn seal(plaintext: &[u8]) -> Result<String, SecretsError> {
     let key = load_or_create_master_key(&master_key_path())?;
     let cipher = cipher(&key);
@@ -484,7 +484,7 @@ pub fn auth_from_sealed(sealed: Option<&str>) -> Option<AuthBundle> {
         .filter(|b| b.is_configured())
 }
 
-/// Serialize + restore `HONR_MASTER_KEY*` across tests (process-global env).
+/// Serialize + restore `SANDBOARD_MASTER_KEY*` across tests (process-global env).
 #[cfg(test)]
 pub(crate) mod master_key_env {
     use std::path::Path;
@@ -505,8 +505,8 @@ pub(crate) mod master_key_env {
 
         fn capture() -> (Option<String>, Option<String>) {
             (
-                std::env::var("HONR_MASTER_KEY_PATH").ok(),
-                std::env::var("HONR_MASTER_KEY").ok(),
+                std::env::var("SANDBOARD_MASTER_KEY_PATH").ok(),
+                std::env::var("SANDBOARD_MASTER_KEY").ok(),
             )
         }
 
@@ -514,8 +514,8 @@ pub(crate) mod master_key_env {
         pub(crate) fn with_key_path(path: impl AsRef<Path>) -> Self {
             let _lock = Self::take_lock();
             let (prev_path, prev_hex) = Self::capture();
-            std::env::set_var("HONR_MASTER_KEY_PATH", path.as_ref());
-            std::env::remove_var("HONR_MASTER_KEY");
+            std::env::set_var("SANDBOARD_MASTER_KEY_PATH", path.as_ref());
+            std::env::remove_var("SANDBOARD_MASTER_KEY");
             Self {
                 _lock,
                 prev_path,
@@ -523,12 +523,12 @@ pub(crate) mod master_key_env {
             }
         }
 
-        /// Exclusive use of `HONR_MASTER_KEY` hex (no path override).
+        /// Exclusive use of `SANDBOARD_MASTER_KEY` hex (no path override).
         pub(crate) fn with_hex_key(hex: &str) -> Self {
             let _lock = Self::take_lock();
             let (prev_path, prev_hex) = Self::capture();
-            std::env::remove_var("HONR_MASTER_KEY_PATH");
-            std::env::set_var("HONR_MASTER_KEY", hex);
+            std::env::remove_var("SANDBOARD_MASTER_KEY_PATH");
+            std::env::set_var("SANDBOARD_MASTER_KEY", hex);
             Self {
                 _lock,
                 prev_path,
@@ -540,12 +540,12 @@ pub(crate) mod master_key_env {
     impl Drop for Guard {
         fn drop(&mut self) {
             match &self.prev_path {
-                Some(p) => std::env::set_var("HONR_MASTER_KEY_PATH", p),
-                None => std::env::remove_var("HONR_MASTER_KEY_PATH"),
+                Some(p) => std::env::set_var("SANDBOARD_MASTER_KEY_PATH", p),
+                None => std::env::remove_var("SANDBOARD_MASTER_KEY_PATH"),
             }
             match &self.prev_hex {
-                Some(h) => std::env::set_var("HONR_MASTER_KEY", h),
-                None => std::env::remove_var("HONR_MASTER_KEY"),
+                Some(h) => std::env::set_var("SANDBOARD_MASTER_KEY", h),
+                None => std::env::remove_var("SANDBOARD_MASTER_KEY"),
             }
         }
     }
@@ -568,7 +568,7 @@ mod tests {
     #[test]
     fn seal_open_round_trip() {
         let dir = std::env::temp_dir().join(format!(
-            "honr-secrets-test-{}",
+            "sandboard-secrets-test-{}",
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()

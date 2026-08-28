@@ -1,13 +1,13 @@
 //! Inject MCP client config into sandboxes (cockpit + optional workers).
 //!
 //! Catalog entries (`McpServerDesired`) render into Cursor/Claude/agy/OpenCode
-//! shapes under `/sandbox/.honr/mcp/`. Cockpit's shipped `honr` entry is stdio
+//! shapes under `/sandbox/.sandboard/mcp/`. Cockpit's shipped `sandboard` entry is stdio
 //! over a local Unix socket (`cockpit_mcp_tunnel`); vestigial JWTs may still be
 //! minted for older HTTP paths (`mcp_oauth`).
 
 use crate::mcp_oauth::{self, OpsMcpTokens};
 use crate::model::{
-    McpHttpAuth, McpServerDesired, McpTransport, HONR_MCP_SERVER_ID,
+    McpHttpAuth, McpServerDesired, McpTransport, SANDBOARD_MCP_SERVER_ID,
 };
 use crate::openshell::OpenShell;
 use crate::store::SharedBoard;
@@ -17,17 +17,17 @@ use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-pub const COCKPIT_MCP_DIR: &str = "/sandbox/.honr/mcp";
+pub const COCKPIT_MCP_DIR: &str = "/sandbox/.sandboard/mcp";
 
-/// Stdio client for the shipped `honr` MCP: retries until the one-shot
+/// Stdio client for the shipped `sandboard` MCP: retries until the one-shot
 /// board relay is listening, then `exec`s `socat`. Direct `socat` races the
 /// listen respawn (inject `agent mcp enable`, prior disconnect) and Cursor
 /// reports "MCP is not connected" / "Connection closed" after a single miss.
-pub const HONR_MCP_STDIO_WRAPPER: &str = "/sandbox/.honr/mcp/honr-mcp-stdio";
+pub const SANDBOARD_MCP_STDIO_WRAPPER: &str = "/sandbox/.sandboard/mcp/sandboard-mcp-stdio";
 
 /// Claude `--bare` does not auto-discover project MCP; attach / engine argv
 /// pass this path via `--mcp-config`.
-pub const COCKPIT_CLAUDE_MCP_CONFIG: &str = "/sandbox/.honr/mcp/claude_mcp.json";
+pub const COCKPIT_CLAUDE_MCP_CONFIG: &str = "/sandbox/.sandboard/mcp/claude_mcp.json";
 
 /// Antigravity (`agy`) global MCP config path (`~/.gemini/config/mcp_config.json`).
 pub const COCKPIT_AGY_MCP_CONFIG: &str = "/sandbox/.gemini/config/mcp_config.json";
@@ -97,13 +97,13 @@ pub async fn provision_worker_mcp(
     inject_sandbox_mcp(os, sandbox, None, &servers).await
 }
 
-/// Cockpit inject list: profile attachments + shipped `honr` if missing.
+/// Cockpit inject list: profile attachments + shipped `sandboard` if missing.
 fn mcp_servers_for_cockpit_inject(board: &SharedBoard) -> Vec<McpServerDesired> {
     let resolved = board.resolve_cockpit_sandbox_create();
     let mut servers = board.attach_mcp_servers_for_resolved(&resolved, true);
-    if !servers.iter().any(|s| s.id == HONR_MCP_SERVER_ID) {
-        if let Some(honr) = board.get_mcp_server(HONR_MCP_SERVER_ID) {
-            servers.insert(0, honr);
+    if !servers.iter().any(|s| s.id == SANDBOARD_MCP_SERVER_ID) {
+        if let Some(sandboard) = board.get_mcp_server(SANDBOARD_MCP_SERVER_ID) {
+            servers.insert(0, sandboard);
         }
     }
     servers
@@ -148,14 +148,14 @@ async fn inject_sandbox_mcp(
         .map_err(|e| Error::Msg(e.to_string()))?;
     std::fs::write(&opencode_path, &opencode_bytes)?;
 
-    // Nothing to export: the shipped honr entry is stdio over a local Unix
+    // Nothing to export: the shipped sandboard entry is stdio over a local Unix
     // socket (see mcp.json / cockpit_mcp_tunnel::AGENT_SOCK_PATH) — no URL,
     // no Bearer.
-    let env_sh = "# honr sandbox MCP — socat stdio relay, see /sandbox/.honr/mcp/mcp.json\n";
+    let env_sh = "# sandboard sandbox MCP — socat stdio relay, see /sandbox/.sandboard/mcp/mcp.json\n";
     std::fs::write(&env_path, env_sh)?;
 
-    let wrapper_path = staging.join("honr-mcp-stdio");
-    std::fs::write(&wrapper_path, honr_mcp_stdio_wrapper_script())?;
+    let wrapper_path = staging.join("sandboard-mcp-stdio");
+    std::fs::write(&wrapper_path, sandboard_mcp_stdio_wrapper_script())?;
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
@@ -202,7 +202,7 @@ async fn inject_sandbox_mcp(
             &format!(
                 r#"
 set -e
-chmod 755 {HONR_MCP_STDIO_WRAPPER}
+chmod 755 {SANDBOARD_MCP_STDIO_WRAPPER}
 # Expand Bearer ${{ENV}} placeholders to the OpenShell resolve token from the
 # process env so Cursor/Claude send a value the egress proxy can rewrite.
 python3 - <<'PY'
@@ -256,8 +256,8 @@ if "$schema" not in doc and "$schema" in frag:
 p.parent.mkdir(parents=True, exist_ok=True)
 p.write_text(json.dumps(doc, indent=2) + "\n")
 PY
-if ! grep -q 'honr/mcp/env.sh' /sandbox/.bashrc 2>/dev/null; then
-  printf '\n# honr MCP\n[ -f %s/env.sh ] && . %s/env.sh\n' {COCKPIT_MCP_DIR} {COCKPIT_MCP_DIR} >> /sandbox/.bashrc
+if ! grep -q 'sandboard/mcp/env.sh' /sandbox/.bashrc 2>/dev/null; then
+  printf '\n# sandboard MCP\n[ -f %s/env.sh ] && . %s/env.sh\n' {COCKPIT_MCP_DIR} {COCKPIT_MCP_DIR} >> /sandbox/.bashrc
 fi
 # Cursor 2026.08+: project mcp.json servers stay "needs approval" / unloaded
 # even with `agent --approve-mcps` (observed on Cockpit attach + resume).
@@ -316,10 +316,10 @@ except Exception:
     raise SystemExit(0)
 mcp = doc.get("mcp")
 if isinstance(mcp, dict):
-    mcp.pop("honr", None)
+    mcp.pop("sandboard", None)
     # Drop catalog keys we may have written; leave operator-owned entries.
     for k in list(mcp.keys()):
-        if k.startswith("honr-") or k == "honr":
+        if k.startswith("sandboard-") or k == "sandboard":
             mcp.pop(k, None)
     doc["mcp"] = mcp
 p.write_text(json.dumps(doc, indent=2) + "\n")
@@ -345,7 +345,7 @@ fn staging_dir() -> Result<PathBuf> {
         .map(|d| d.as_nanos())
         .unwrap_or(0);
     let dir = std::env::temp_dir().join(format!(
-        "honr-cockpit-mcp-{}-{}",
+        "sandboard-cockpit-mcp-{}-{}",
         std::process::id(),
         nanos
     ));
@@ -413,7 +413,7 @@ fn render_cursor_entry(server: &McpServerDesired, tokens: Option<&OpsMcpTokens>)
             // Local unix-socket relay must not inherit OpenShell proxy env —
             // Cursor replaces the process env with this map, and `socat`
             // then tries ALL_PROXY for the UDS connect (connection refused).
-            let env = if is_honr_uds_relay(&command, &args) {
+            let env = if is_sandboard_uds_relay(&command, &args) {
                 local_stdio_env()
             } else {
                 stdio_env(&server.env)
@@ -450,7 +450,7 @@ fn render_opencode_entry(server: &McpServerDesired, tokens: Option<&OpsMcpTokens
             let mut cmdline = vec![command.clone()];
             cmdline.extend(args.iter().cloned());
             entry.insert("command".into(), json!(cmdline));
-            let env = if is_honr_uds_relay(&command, &args) {
+            let env = if is_sandboard_uds_relay(&command, &args) {
                 local_stdio_env()
             } else {
                 stdio_env(&server.env)
@@ -466,7 +466,7 @@ fn render_opencode_entry(server: &McpServerDesired, tokens: Option<&OpsMcpTokens
 
 /// Retrying stdio client for the one-shot `UNIX-LISTEN` relay in
 /// `cockpit_mcp_tunnel`. Uploaded beside `mcp.json` on inject.
-fn honr_mcp_stdio_wrapper_script() -> String {
+fn sandboard_mcp_stdio_wrapper_script() -> String {
     format!(
         r#"#!/bin/sh
 # Board MCP relay listens one-shot; brief gaps between accepts are normal.
@@ -479,27 +479,27 @@ while [ "$i" -lt 50 ]; do
   i=$((i + 1))
   sleep 0.1
 done
-echo "honr-mcp-stdio: $sock not listening after retries" >&2
+echo "sandboard-mcp-stdio: $sock not listening after retries" >&2
 exit 1
 "#,
         sock = crate::cockpit_mcp_tunnel::AGENT_SOCK_PATH
     )
 }
 
-/// Fill in the shipped honr entry's placeholder (empty `command`) with the
+/// Fill in the shipped sandboard entry's placeholder (empty `command`) with the
 /// cockpit MCP relay's stdio client — mirrors `resolve_http_url`'s empty-URL
 /// placeholder for the same reason: model.rs stays free of a dependency on
-/// the inject layer. Wrapper (not bare `socat`): see `HONR_MCP_STDIO_WRAPPER`.
+/// the inject layer. Wrapper (not bare `socat`): see `SANDBOARD_MCP_STDIO_WRAPPER`.
 fn resolve_stdio_command(command: &str, args: &[String]) -> Option<(String, Vec<String>)> {
     let t = command.trim();
     if !t.is_empty() {
         return Some((t.to_string(), args.to_vec()));
     }
-    Some((HONR_MCP_STDIO_WRAPPER.into(), Vec::new()))
+    Some((SANDBOARD_MCP_STDIO_WRAPPER.into(), Vec::new()))
 }
 
-fn is_honr_uds_relay(command: &str, args: &[String]) -> bool {
-    if command == HONR_MCP_STDIO_WRAPPER && args.is_empty() {
+fn is_sandboard_uds_relay(command: &str, args: &[String]) -> bool {
+    if command == SANDBOARD_MCP_STDIO_WRAPPER && args.is_empty() {
         return true;
     }
     // Pre-wrapper mcp.json shape (hot-patched sandboxes / older injects).
@@ -622,7 +622,7 @@ mod tests {
     }
 
     #[test]
-    fn mcp_json_resolves_shipped_honr_to_stdio_socat_relay() {
+    fn mcp_json_resolves_shipped_sandboard_to_stdio_socat_relay() {
         let tokens = OpsMcpTokens {
             access_token: "tok-access".into(),
             refresh_token: "tok-refresh".into(),
@@ -632,29 +632,29 @@ mod tests {
             client_id: mcp_oauth::COCKPIT_CLIENT_ID.into(),
             sub: "admin".into(),
         };
-        let honr = McpServerDesired::shipped_honr();
-        let doc = mcp_json_document(Some(&tokens), std::slice::from_ref(&honr));
-        assert_eq!(doc["mcpServers"]["honr"]["type"], "stdio");
+        let sandboard = McpServerDesired::shipped_sandboard();
+        let doc = mcp_json_document(Some(&tokens), std::slice::from_ref(&sandboard));
+        assert_eq!(doc["mcpServers"]["sandboard"]["type"], "stdio");
         assert_eq!(
-            doc["mcpServers"]["honr"]["command"],
-            HONR_MCP_STDIO_WRAPPER
+            doc["mcpServers"]["sandboard"]["command"],
+            SANDBOARD_MCP_STDIO_WRAPPER
         );
-        assert_eq!(doc["mcpServers"]["honr"]["args"], json!([]));
+        assert_eq!(doc["mcpServers"]["sandboard"]["args"], json!([]));
         // Stdio transport has no headers/Authorization at all.
-        assert!(doc["mcpServers"]["honr"].get("headers").is_none());
-        assert!(doc["mcpServers"]["honr"].get("url").is_none());
+        assert!(doc["mcpServers"]["sandboard"].get("headers").is_none());
+        assert!(doc["mcpServers"]["sandboard"].get("url").is_none());
         // Must not ship proxy env — Cursor replaces process env and `socat` breaks.
-        assert!(doc["mcpServers"]["honr"]["env"].get("ALL_PROXY").is_none());
-        assert!(doc["mcpServers"]["honr"]["env"].get("HTTP_PROXY").is_none());
-        assert_eq!(doc["mcpServers"]["honr"]["env"]["HOME"], "/sandbox");
+        assert!(doc["mcpServers"]["sandboard"]["env"].get("ALL_PROXY").is_none());
+        assert!(doc["mcpServers"]["sandboard"]["env"].get("HTTP_PROXY").is_none());
+        assert_eq!(doc["mcpServers"]["sandboard"]["env"]["HOME"], "/sandbox");
 
-        let oc = opencode_jsonc_document(Some(&tokens), std::slice::from_ref(&honr));
-        assert_eq!(oc["mcp"]["honr"]["type"], "local");
+        let oc = opencode_jsonc_document(Some(&tokens), std::slice::from_ref(&sandboard));
+        assert_eq!(oc["mcp"]["sandboard"]["type"], "local");
         assert_eq!(
-            oc["mcp"]["honr"]["command"],
-            json!([HONR_MCP_STDIO_WRAPPER])
+            oc["mcp"]["sandboard"]["command"],
+            json!([SANDBOARD_MCP_STDIO_WRAPPER])
         );
-        assert!(oc["mcp"]["honr"]["environment"].get("ALL_PROXY").is_none());
+        assert!(oc["mcp"]["sandboard"]["environment"].get("ALL_PROXY").is_none());
     }
 
     #[test]
@@ -719,8 +719,8 @@ mod tests {
             client_id: mcp_oauth::COCKPIT_CLIENT_ID.into(),
             sub: "cockpit".into(),
         };
-        let honr = McpServerDesired::shipped_honr();
-        inject_sandbox_mcp(&os, "honr-cockpit", Some(&tokens), std::slice::from_ref(&honr))
+        let sandboard = McpServerDesired::shipped_sandboard();
+        inject_sandbox_mcp(&os, "sandboard-cockpit", Some(&tokens), std::slice::from_ref(&sandboard))
             .await
             .expect("inject");
         let calls = seen.lock().clone();

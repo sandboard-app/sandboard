@@ -1,6 +1,6 @@
 [book]
-title = "honr"
-description = "Operator docs for running and understanding honr"
+title = "sandboard"
+description = "Operator docs for running and understanding sandboard"
 language = "en"
 src = "docs"
 
@@ -12,9 +12,9 @@ create-missing = false
 command = "mdbook-mermaid"
 
 [output.html]
-git-repository-url = "https://github.com/honr-app/honr"
-edit-url-template = "https://github.com/honr-app/honr/edit/main/docs/{path}"
-# Org root site: https://honr-app.github.io/ (published to honr-app/honr-app.github.io)
+git-repository-url = "https://github.com/sandboard-app/sandboard"
+edit-url-template = "https://github.com/sandboard-app/sandboard/edit/main/docs/{path}"
+# Org root site: https://sandboard-app.github.io/ (published to sandboard-app/sandboard-app.github.io)
 site-url = "/"
 no-section-label = true
 # Dropped next to book.toml by `mdbook-mermaid install` (make docs / CI).

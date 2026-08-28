@@ -2,7 +2,7 @@
 
 ## Everything fails as a hang
 
-**This is the single most useful thing to know about running honr.**
+**This is the single most useful thing to know about running sandboard.**
 
 A denied egress, a missing credential, a wedged relay, a stopped compute driver
 — none of them produce an error. They produce silence. Nothing in the sandbox
@@ -11,7 +11,7 @@ stack has a reliable failure path that surfaces as a failure.
 So: **if something is taking longer than it should, it has already failed.**
 Do not wait it out. Go look.
 
-That observation shapes the code as much as the operations. Every exec honr
+That observation shapes the code as much as the operations. Every exec sandboard
 issues carries a deadline, and a deadline expiring is treated as failure rather
 than as "maybe a bit more time."
 
@@ -20,7 +20,7 @@ than as "maybe a bit more time."
 ```bash
 openshell logs <sandbox> -n 60     # grep for DENIED, ALLOWED, ssrf, HTTP:
 openshell sandbox list             # phases; Deleting still shows up here
-journalctl -u honr | grep 'openshell exec failed'   # board-side ExecSandbox drops
+journalctl -u sandboard | grep 'openshell exec failed'   # board-side ExecSandbox drops
 ```
 
 Failed `ExecSandbox` / interactive setup paths in `src/openshell.rs` emit a
@@ -35,7 +35,7 @@ directly.
 
 A **failed card keeps its sandbox** rather than deleting it. `openshell logs` is
 the tool that answers questions and a deleted sandbox answers none. Sandbox
-names are attempt-scoped (`honr-card-8-a2`), so a retry never collides with the
+names are attempt-scoped (`sandboard-card-8-a2`), so a retry never collides with the
 one being kept for inspection, and `reconcile` clears them at next startup.
 
 ## Common causes
@@ -48,7 +48,7 @@ The podman machine stops on its own. So does Colima, occasionally.
 docker info      # if this fails, nothing below matters
 ```
 
-honr classifies this as infrastructure, not as the card failing: it
+sandboard classifies this as infrastructure, not as the card failing: it
 health-checks before claiming and pauses after an infrastructure failure rather
 than spending a card's retry budget on an outage it cannot fix.
 
@@ -89,7 +89,7 @@ appends its own path, while `opencode` wants
 ### An environment variable the agent needs is missing
 
 **The image's `ENV` does not reach `openshell sandbox exec`.** Baking
-`ENV PATH=…` into the Containerfile is not enough. Honr always passes
+`ENV PATH=…` into the Containerfile is not enough. Sandboard always passes
 `agent_env` at create; overlay non-secret seat vars on the sandbox spec's
 **`env`** (Settings → Sandbox specs — profile wins on key clash). Secrets
 belong on Providers, not spec env. See
@@ -101,12 +101,12 @@ belong on Providers, not spec env. See
 already exist. Uploading to `/tmp/foo.py` creates a *directory* named
 `/tmp/foo.py` with the file inside it. Upload to `/tmp`.
 
-## Restarting honr while a card is running
+## Restarting sandboard while a card is running
 
 This is safe. The agent runs **detached** inside its sandbox, so it does not
-care that honr went away.
+care that sandboard went away.
 
-On startup `reconcile` lists the sandboxes honr labelled, matches each against
+On startup `reconcile` lists the sandboxes sandboard labelled, matches each against
 its card's environment, and picks the run back up for any card still Claimed or
 Running. The card stays Running; no second sandbox is created.
 
@@ -140,5 +140,5 @@ will not start until the first finishes.
 npm --prefix web run shots      # → web/shots/*.png
 ```
 
-Runs a scratch honr on `:8081` against a fixture board and captures desktop and
+Runs a scratch sandboard on `:8081` against a fixture board and captures desktop and
 phone views. Your real board is untouched.

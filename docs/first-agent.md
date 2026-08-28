@@ -8,7 +8,7 @@ pull request.
 
 ## Start in the product
 
-On an empty board, **Welcome to honr** embeds the same operator guide as
+On an empty board, **Welcome to sandboard** embeds the same operator guide as
 **Help** (nav → Help). That guide is the named first-run path:
 
 1. **Connect MCP**
@@ -36,7 +36,7 @@ only stack.
 | 3 | Model + GitHub credentials | as OpenShell *providers*, never baked into an image |
 | 4 | A sandbox image | with whatever toolchain the work needs |
 
-honr itself holds none of those credentials. It talks to the gateway over gRPC
+sandboard itself holds none of those credentials. It talks to the gateway over gRPC
 and the gateway injects secrets on egress, so nothing sensitive enters the
 sandbox.
 
@@ -51,7 +51,7 @@ your choice:
 | **Colima** | `colima start`, then point the gateway at `unix://$HOME/.colima/default/docker.sock` |
 | **Docker Desktop / engine** | Make sure the daemon is up and the gateway can reach its socket |
 
-`DOCKER_HOST` and friends belong to the **gateway process**, not to honr
+`DOCKER_HOST` and friends belong to the **gateway process**, not to sandboard
 Settings.
 
 **Check:**
@@ -60,13 +60,13 @@ Settings.
 docker info        # must succeed
 ```
 
-The driver can stop on its own — the podman machine especially. honr classifies
+The driver can stop on its own — the podman machine especially. sandboard classifies
 that as infrastructure rather than the card failing, so it will not burn a
 card's retry budget, but it cannot prevent the outage.
 
 ## 2. The OpenShell gateway
 
-Start it however your install expects (Homebrew service, systemd, …). honr does
+Start it however your install expects (Homebrew service, systemd, …). sandboard does
 not spawn an `openshell` CLI for board traffic: `src/openshell.rs` talks to the
 gateway in-process over gRPC with client certificates.
 
@@ -76,14 +76,14 @@ gateway in-process over gRPC with client certificates.
 openshell status   # expect Connected + Authenticated
 ```
 
-Then tell honr how to reach it, in **Settings → OpenShell → Connectivity**
+Then tell sandboard how to reach it, in **Settings → OpenShell → Connectivity**
 (Welcome/Help deep-links here):
 
-- **Gateway endpoint** — often `https://127.0.0.1:17670` (not honr's `8080`;
+- **Gateway endpoint** — often `https://127.0.0.1:17670` (not sandboard's `8080`;
   your install may differ).
 - **mTLS PEMs** — CA, client cert, client key. Paste them in. They are stored
-  encrypted in the board database (`~/.config/honr/master.key`). The API does
-  not return private keys. honr does not read them from disk — upload them in
+  encrypted in the board database (`~/.config/sandboard/master.key`). The API does
+  not return private keys. sandboard does not read them from disk — upload them in
   Settings.
 
 **Settings** (stored on the board) is the live source of truth for gateway
@@ -113,7 +113,7 @@ environment variable that will silently break this:
 [Sandbox](sandbox.md#how-credentials-reach-the-agent).
 
 For **`agy`** and **`cursor`**, model selection is on the Sandbox spec (or per
-card at claim); honr passes the resolved value as `agy --model …` or
+card at claim); sandboard passes the resolved value as `agy --model …` or
 `agent --model …`. See
 [Configuration](configuration.md#model) and [Sandbox](sandbox.md#model-selection).
 
@@ -136,13 +136,13 @@ keeps the policy it was created with.
 
 A fresh board already has four seeded specs — `sandbox-cursor`,
 `sandbox-agy`, `sandbox-claude`, `sandbox-opencode` — each pointed at
-`quay.io/honr-app/sandbox-<engine>:latest` and a matching minimal Cockpit
+`quay.io/sandboard-app/sandbox-<engine>:latest` and a matching minimal Cockpit
 policy. None of them is the default yet — pick one (Welcome flags this until
 you do). Build and push those images yourself (or point the seeded specs at
 wherever you host them):
 
 ```bash
-make sandbox        # builds all four quay.io/honr-app/sandbox-<engine>:latest
+make sandbox        # builds all four quay.io/sandboard-app/sandbox-<engine>:latest
 make sandbox-push   # builds, then pushes all four
 # Docker: CONTAINER_ENGINE=docker make sandbox
 # Different registry: REGISTRY=ghcr.io/you make sandbox
@@ -150,7 +150,7 @@ make sandbox-push   # builds, then pushes all four
 
 From the **repo root**, not `sandbox/` — the Containerfile is multi-stage and
 `podman build -f sandbox/Containerfile` resolves relative to wherever you run
-it. Each image bakes a Rust toolchain but no honr source or dependency cache;
+it. Each image bakes a Rust toolchain but no sandboard source or dependency cache;
 a card's own `cargo build`/`npm ci` fetch crates.io/npm live, so the seeded
 Cockpit policies allow that egress (`src/seed_policies.rs`).
 

@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://honr.dev/schemas/report.schema.json",
-  "title": "honr report.json",
+  "$id": "https://sandboard.dev/schemas/report.schema.json",
+  "title": "sandboard report.json",
   "description": "Agent finish verdict. Persist forge facts on the card via url + GitHub-shaped base/head.",
   "type": "object",
   "required": ["url", "base", "head"],
@@ -41,7 +41,7 @@
         },
         "ref": {
           "type": "string",
-          "description": "Head branch name (usually honr/card-N)."
+          "description": "Head branch name (usually sandboard/card-N)."
         }
       }
     },
