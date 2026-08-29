@@ -1,7 +1,7 @@
 name: Docs
 
 # Build mdBook here; publish HTML to sandboard-app/sandboard-app.github.io
-# → https://sandboard-app.github.io/
+# → https://sandboard.io/
 #
 # Secret PAGES_DEPLOY_KEY: private half of a write deploy key on
 # sandboard-app/sandboard-app.github.io (org deploy keys must be enabled).
@@ -134,6 +134,7 @@ jobs:
           external_repository: sandboard-app/sandboard-app.github.io
           publish_branch: main
           publish_dir: ./target/mdbook
+          cname: sandboard.io
           # Orphan commits keep the pages repo = HTML only (legacy branch Pages).
           force_orphan: true
           enable_jekyll: false
