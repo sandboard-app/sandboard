@@ -70,8 +70,8 @@ and **steer** over both when the note can wait.
 | **OpenShell** | The sandbox gateway sandboard talks to over gRPC. Owns containers, network policy, and provider credentials. |
 | **Policy** | A named OpenShell YAML allow-list (filesystem / network) on the board. Edited in Settings → OpenShell → Policies. Applied at sandbox create and fixed for that sandbox's life. |
 | **Sandbox spec** | The named recipe for a sandbox: image, CPU, memory, engine, optional model / env / prompt, attached providers, and a reference to a Policy by id. Managed in Settings → OpenShell → Sandbox specs. Spec `env` is non-secret (overlaid after `agent_env` at create; profile wins on clash); secrets belong on Providers. |
-| **Engine** | Which agent CLI runs in the sandbox: `cursor`, `claude`, `opencode`, or `agy`. |
-| **Provider** | A credential OpenShell holds and injects on egress — inference, GitHub. Secrets never enter the sandbox. |
+| **Engine** | Which agent CLI runs in the sandbox: `cursor`, `claude`, `opencode`, `agy`, or `hermes`. |
+| **Provider** | A credential OpenShell holds and injects only where its endpoint/profile allows — for example `OPENROUTER_API_KEY` for Hermes or `GH_TOKEN` for GitHub. Secrets are not baked into images or persisted in sandbox workspaces. |
 | **Briefing** | What the supervisor assembles at claim time: Plan, hardwired protocol, board standing prompt, optional `project_prompt`, optional sandbox-spec `prompt` as **Sandbox prompt (seat notes):** (cold / Cockpit only — omitted on resume), then card intent/DoD/notes and remotes. Points at standing text and DoD for quality gates — does not invent them. |
 | **Lease** | The claim an agent holds on a card. Expires if output stops, so another run can take the card. |
 | **Compute driver** | Whatever provides the Docker-compatible API OpenShell needs: podman, Colima, Docker. Your choice, outside sandboard. |

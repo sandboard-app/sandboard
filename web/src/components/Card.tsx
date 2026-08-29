@@ -105,6 +105,8 @@ export function Card({ item, column, now, agentTimeout, defaultEngine, defaultMo
                     ? "◈ cursor"
                     : engine === "opencode"
                       ? "◐ opencode"
+                      : engine === "hermes"
+                        ? "✦ hermes"
                       : `◍ ${engine || "?"}`}
             </span>
             {model && (

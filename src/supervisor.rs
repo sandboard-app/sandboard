@@ -24,6 +24,7 @@ use crate::openshell::{OpenShell, Output, SandboxSpec, LABEL_COCKPIT, LABEL_ITEM
 use crate::schema::{AgentConfig, ExecutionConfig};
 use crate::store::{ClaimGrant, SharedBoard};
 
+use chrono::{DateTime, Utc};
 use std::collections::{BTreeMap, HashSet};
 use std::future::Future;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
@@ -444,8 +445,8 @@ fn adoptable<'a>(item: Option<&'a WorkItem>, sandbox: &str) -> Option<&'a WorkIt
 
 /// Should reconcile keep this sandbox?
 ///
-/// When the card has an `environment`, keep that name and any
-/// `sandboard-card-{id}-*` sibling (mid-create races / prior attempts). Matching
+/// When the card has an `environment`, keep that name and any current or legacy
+/// card-sandbox sibling (mid-create races / prior attempts). Matching
 /// only `environment` reaped sandboxes mid-setup. Halt clears `environment` so
 /// nothing is kept — park / Review / request-changes leave it set so caches survive.
 fn should_keep_sandbox(item: Option<&WorkItem>, sandbox: &str) -> bool {
@@ -457,7 +458,8 @@ fn should_keep_sandbox(item: Option<&WorkItem>, sandbox: &str) -> bool {
         return false;
     };
     let stem = crate::schema::card_sandbox_stem(i.id);
-    env == sandbox || sandbox.starts_with(&stem)
+    let legacy_stem = crate::schema::legacy_card_sandbox_stem(i.id);
+    env == sandbox || sandbox.starts_with(&stem) || sandbox.starts_with(&legacy_stem)
 }
 
 /// How long startup waits for the gateway before giving up on reconciling.
@@ -716,6 +718,10 @@ async fn is_sandbox_live(os: &OpenShell, name: &str) -> bool {
     }
 }
 
+fn cockpit_sandbox_name_is_present(sandboxes: &[crate::openshell::Sandbox], name: &str) -> bool {
+    sandboxes.iter().any(|sandbox| sandbox.name == name)
+}
+
 async fn run_card(f: Fleet, agent_id: String, grant: ClaimGrant) -> anyhow::Result<()> {
     let board = &f.board;
     let os_owned = f.os();
@@ -797,6 +803,9 @@ async fn run_card(f: Fleet, agent_id: String, grant: ClaimGrant) -> anyhow::Resu
 
     let resolved = board.resolve_sandbox_create(id);
     let attach = board.attach_providers_for_resolved(&resolved);
+    if let Err(e) = crate::api::reconcile_attached_providers(board, &attach).await {
+        anyhow::bail!("OpenShell provider reconciliation failed: {e}");
+    }
     let mut spec = sandbox_spec_for_card(id, &name, &resolved, &attach);
     if let Some(o) = &route {
         crate::github_app::overlay_routed_provider(&mut spec.providers, o);
@@ -1866,6 +1875,41 @@ async fn finish(
         return Ok(());
     }
 
+    if board.get(id).is_some_and(|item| item.is_initial_plan_task()) {
+        let detail = if run.ok() {
+            format!(
+                "Initial plan finished without writing {VERDICT_DIR}/plan.json."
+            )
+        } else {
+            format!(
+                "Initial plan exited before writing {VERDICT_DIR}/plan.json."
+            )
+        };
+        board
+            .escalate(
+                id,
+                agent_id,
+                detail,
+                vec![
+                    crate::model::EscalationOption {
+                        label: "Write plan.json".into(),
+                        detail: format!(
+                            "Write {VERDICT_DIR}/plan.json with the proposed Tasks, then exit."
+                        ),
+                    },
+                    crate::model::EscalationOption {
+                        label: "Propose Plan on the board".into(),
+                        detail: "Use propose_breakdown on the Project, then Approve that card."
+                            .into(),
+                    },
+                ],
+                0,
+            )
+            .map_err(|e| anyhow::anyhow!("Initial plan escalation: {e}"))?;
+        tracing::warn!("#{id}: Initial plan produced no verdict file");
+        return Ok(());
+    }
+
     anyhow::ensure!(run.ok(), "agent exited {}: {}", run.code, outerr(run));
 
     // ---- verify what the agent published ---------------------------------
@@ -1975,12 +2019,21 @@ fn start_script(
         .map(|c| format!("export SANDBOARD_CONVERSATION={}\n", shell_quote(c)))
         .unwrap_or_default();
     let inference_exports = crate::engine::anthropic_inference_exports(engine);
+    let hermes_inference_exports = crate::engine::hermes_inference_exports(engine);
+    let hermes_query_setup = if engine.trim() == "hermes" {
+        format!(
+            "printf '%s' \"$SANDBOARD_BRIEFING\" > {}\n",
+            crate::engine::HERMES_QUERY_FILE
+        )
+    } else {
+        String::new()
+    };
     Ok(format!(
         r#"set -e
 rm -f {AGENT_PID} {AGENT_STATUS}
 : > {AGENT_LOG}
 export SANDBOARD_BRIEFING={brief}
-{inference_exports}{conv_export}setsid nohup bash -c 'echo $$ > {AGENT_PID}; cd {WORKDIR} && timeout --foreground {secs} {cmd} >> {AGENT_LOG} 2>&1; echo $? > {AGENT_STATUS}' </dev/null >/dev/null 2>&1 &
+{hermes_query_setup}{inference_exports}{hermes_inference_exports}{conv_export}setsid nohup bash -c 'echo $$ > {AGENT_PID}; cd {WORKDIR} && timeout --foreground {secs} {cmd} >> {AGENT_LOG} 2>&1; echo $? > {AGENT_STATUS}' </dev/null >/dev/null 2>&1 &
 for i in $(seq 1 40); do
   if [ -s {AGENT_PID} ]; then exit 0; fi
   sleep 0.25
@@ -2225,6 +2278,7 @@ fn agent_env(engine: &str) -> Vec<(String, String)> {
         ),
     ];
     env.extend(crate::engine::anthropic_inference_env(engine));
+    env.extend(crate::engine::hermes_inference_env(engine));
     env
 }
 
@@ -2554,16 +2608,17 @@ pub const CONFLICTING_PR_BOUNCE_REASON: &str =
 /// card looks finished while GitHub still cannot merge.
 fn pr_lookup_script(cfg: &AgentConfig, branch: &str) -> String {
     let upstream = cfg.repo.upstream.trim();
-    // Cross-fork PRs need owner:branch; same-repo uses the branch alone.
+    // `gh pr list --head` no longer accepts owner:branch. Keep the branch
+    // filter there and use GitHub's search qualifier for cross-fork ownership.
     let head = if cfg.repo.uses_cross_fork() {
         let fork_owner = cfg.repo.fork.split('/').next().unwrap_or("").trim();
-        format!("{fork_owner}:{branch}")
+        format!("--head {branch} --search 'head:{fork_owner}:{branch}'")
     } else {
-        branch.to_string()
+        format!("--head {branch}")
     };
     format!(
         r#"set -e
-row=$(gh pr list --repo {upstream} --head {head} --state open --json url,mergeable --jq '.[0] // empty')
+row=$(gh pr list --repo {upstream} {head} --state open --json url,mergeable --jq '.[0] // empty')
 if [ -n "$row" ]; then
   url=$(printf '%s' "$row" | jq -r '.url // empty')
   mergeable=$(printf '%s' "$row" | jq -r '.mergeable // empty')
@@ -3129,6 +3184,8 @@ instructions name it.\n",
 
 const COCKPIT_CANCEL_PARKED: &str = "cockpit parked";
 const COCKPIT_CANCEL_STOPPED: &str = "cockpit stopped";
+const COCKPIT_CANCEL_SUPERSEDED: &str = "cockpit session superseded";
+const COCKPIT_CANCEL_UNUSABLE: &str = "cockpit sandbox unusable";
 
 fn is_cockpit_parked(err: &str) -> bool {
     err.contains(COCKPIT_CANCEL_PARKED)
@@ -3136,6 +3193,14 @@ fn is_cockpit_parked(err: &str) -> bool {
 
 fn is_cockpit_stopped(err: &str) -> bool {
     err.contains(COCKPIT_CANCEL_STOPPED)
+}
+
+fn is_cockpit_superseded(err: &str) -> bool {
+    err.contains(COCKPIT_CANCEL_SUPERSEDED)
+}
+
+fn is_cockpit_unusable(err: &str) -> bool {
+    err.contains(COCKPIT_CANCEL_UNUSABLE)
 }
 
 /// Should reconcile keep this cockpit sandbox?
@@ -3182,16 +3247,33 @@ fn cockpit_engine(board: &SharedBoard, _resolved: &crate::model::ResolvedSandbox
 }
 
 fn ensure_cockpit_running(board: &SharedBoard) -> anyhow::Result<()> {
-    match board.cockpit_session() {
-        Some(s) if s.status == CockpitSessionStatus::Running => Ok(()),
-        Some(s) if s.status == CockpitSessionStatus::Parked => {
-            anyhow::bail!("{COCKPIT_CANCEL_PARKED}")
-        }
-        _ => anyhow::bail!("{COCKPIT_CANCEL_STOPPED}"),
+    ensure_cockpit_session_running(board, None)
+}
+
+fn ensure_cockpit_session_running(
+    board: &SharedBoard,
+    expected_created_at: Option<DateTime<Utc>>,
+) -> anyhow::Result<()> {
+    let Some(session) = board.cockpit_session() else {
+        anyhow::bail!("{COCKPIT_CANCEL_STOPPED}");
+    };
+    if expected_created_at
+        .map(|expected| session.created_at != expected)
+        .unwrap_or(false)
+    {
+        anyhow::bail!("{COCKPIT_CANCEL_SUPERSEDED}");
+    }
+    match session.status {
+        CockpitSessionStatus::Running => Ok(()),
+        CockpitSessionStatus::Parked => anyhow::bail!("{COCKPIT_CANCEL_PARKED}"),
     }
 }
 
-async fn with_cockpit_cancel<F, T>(board: &SharedBoard, fut: F) -> anyhow::Result<T>
+async fn with_cockpit_cancel<F, T>(
+    board: &SharedBoard,
+    expected_created_at: DateTime<Utc>,
+    fut: F,
+) -> anyhow::Result<T>
 where
     F: Future<Output = anyhow::Result<T>>,
 {
@@ -3202,7 +3284,9 @@ where
     loop {
         tokio::select! {
             res = &mut fut => return res,
-            _ = poll.tick() => ensure_cockpit_running(board)?,
+            _ = poll.tick() => {
+                ensure_cockpit_session_running(board, Some(expected_created_at))?
+            },
         }
     }
 }
@@ -3223,6 +3307,19 @@ fn cockpit_session_wants_sandbox(board: &SharedBoard, name: &str) -> bool {
 
 /// Delete a cockpit sandbox in the background, skipping if Start raced back in.
 fn spawn_reap_cockpit_sandbox(os: OpenShell, board: SharedBoard, name: String) {
+    spawn_reap_cockpit_sandbox_inner(os, board, name, false);
+}
+
+fn spawn_reap_cockpit_sandbox_force(os: OpenShell, board: SharedBoard, name: String) {
+    spawn_reap_cockpit_sandbox_inner(os, board, name, true);
+}
+
+fn spawn_reap_cockpit_sandbox_inner(
+    os: OpenShell,
+    board: SharedBoard,
+    name: String,
+    force: bool,
+) {
     {
         let mut g = cockpit_delete_inflight().lock();
         if !g.insert(name.clone()) {
@@ -3231,7 +3328,7 @@ fn spawn_reap_cockpit_sandbox(os: OpenShell, board: SharedBoard, name: String) {
     }
     tokio::spawn(async move {
         // Stop → Start can land while we were queued; never delete under a live session.
-        if cockpit_session_wants_sandbox(&board, &name) {
+        if !force && cockpit_session_wants_sandbox(&board, &name) {
             tracing::info!("cockpit: skip reap of {name}; session wants sandbox again");
         } else {
             tracing::info!("cockpit: deleting sandbox {name}");
@@ -3286,13 +3383,18 @@ async fn run_cockpit_seat(board: SharedBoard) -> anyhow::Result<(String, anyhow:
     let session = board
         .cockpit_session()
         .ok_or_else(|| anyhow::anyhow!("{COCKPIT_CANCEL_STOPPED}"))?;
+    let session_created_at = session.created_at;
     let existing = session.environment.clone();
     let default_name = crate::schema::cockpit_sandbox_name();
 
     let (name, is_reused) = match existing {
         Some(ref env_name)
-            if with_cockpit_cancel(&board, async { Ok(is_sandbox_live(&os, env_name).await) })
-                .await? =>
+            if with_cockpit_cancel(
+                &board,
+                session_created_at,
+                async { Ok(is_sandbox_live(&os, env_name).await) },
+            )
+            .await? =>
         {
             (env_name.clone(), true)
         }
@@ -3308,10 +3410,14 @@ async fn run_cockpit_seat(board: SharedBoard) -> anyhow::Result<(String, anyhow:
                     spawn_reap_cockpit_sandbox(os.clone(), board.clone(), prev.clone());
                 }
             }
-            ensure_cockpit_running(&board)?;
+            ensure_cockpit_session_running(&board, Some(session_created_at))?;
             let live =
-                with_cockpit_cancel(&board, async { Ok(is_sandbox_live(&os, &new_name).await) })
-                    .await?;
+                with_cockpit_cancel(
+                    &board,
+                    session_created_at,
+                    async { Ok(is_sandbox_live(&os, &new_name).await) },
+                )
+                .await?;
             if live {
                 // Reuse: sandbox already answers exec — safe to publish env now.
                 board
@@ -3339,7 +3445,17 @@ async fn run_cockpit_seat(board: SharedBoard) -> anyhow::Result<(String, anyhow:
     };
 
     let spec = sandbox_spec_for_cockpit(&name, &resolved, &attach, &engine);
-    let result = run_cockpit_inside(&board, &os, &agents, &name, &spec, &engine, is_reused).await;
+    let result = run_cockpit_inside(
+        &board,
+        &os,
+        &agents,
+        &name,
+        &spec,
+        &engine,
+        is_reused,
+        session_created_at,
+    )
+    .await;
     Ok((name, result))
 }
 
@@ -3351,15 +3467,26 @@ async fn wait_cockpit_name_free(
     board: &SharedBoard,
     os: &OpenShell,
     name: &str,
+    expected_created_at: DateTime<Utc>,
 ) -> anyhow::Result<()> {
     let deadline = tokio::time::Instant::now() + Duration::from_secs(180);
     let mut kicked = false;
     let mut announced = false;
     loop {
-        ensure_cockpit_running(board)?;
+        ensure_cockpit_session_running(board, Some(expected_created_at))?;
         let inflight = cockpit_delete_inflight().lock().contains(name);
-        let live = is_sandbox_live(os, name).await;
-        if !inflight && !live {
+        let present = match os.list_cockpit().await {
+            Ok(sandboxes) => cockpit_sandbox_name_is_present(&sandboxes, name),
+            Err(err) => {
+                tracing::debug!(error = %err, "could not inspect cockpit sandbox name");
+                if tokio::time::Instant::now() >= deadline {
+                    anyhow::bail!("could not inspect cockpit sandbox {name} before timeout");
+                }
+                tokio::time::sleep(Duration::from_millis(500)).await;
+                continue;
+            }
+        };
+        if !inflight && !present {
             return Ok(());
         }
         if !announced {
@@ -3372,15 +3499,16 @@ async fn wait_cockpit_name_free(
         if tokio::time::Instant::now() >= deadline {
             anyhow::bail!("cockpit sandbox {name} still present after stop");
         }
-        if live && !inflight && !kicked {
-            // Orphan left after a failed/skipped reap — kick one delete.
-            spawn_reap_cockpit_sandbox(os.clone(), board.clone(), name.to_string());
+        if present && !inflight && !kicked {
+            // Orphan or failed sandbox left after a previous attempt — kick one delete.
+            spawn_reap_cockpit_sandbox_force(os.clone(), board.clone(), name.to_string());
             kicked = true;
         }
         tokio::time::sleep(Duration::from_millis(500)).await;
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn run_cockpit_inside(
     board: &SharedBoard,
     os: &OpenShell,
@@ -3389,23 +3517,40 @@ async fn run_cockpit_inside(
     spec: &SandboxSpec,
     _engine: &str,
     is_reused: bool,
+    session_created_at: DateTime<Utc>,
 ) -> anyhow::Result<()> {
     let short = Duration::from_secs(180);
 
     if !is_reused {
-        with_cockpit_cancel(board, wait_cockpit_name_free(board, os, name)).await?;
+        with_cockpit_cancel(
+            board,
+            session_created_at,
+            wait_cockpit_name_free(board, os, name, session_created_at),
+        )
+        .await?;
         let _ = board.set_cockpit_sandbox_phase(
             CockpitSandboxPhase::Provisioning,
             Some("Creating cockpit sandbox".into()),
         );
-        with_cockpit_cancel(board, async { os.create(spec).await.map_err(Into::into) }).await?;
+        with_cockpit_cancel(
+            board,
+            session_created_at,
+            async { os.create(spec).await.map_err(Into::into) },
+        )
+        .await?;
         let _ = board.set_cockpit_sandbox_phase(
             CockpitSandboxPhase::Provisioning,
             Some("Waiting for sandbox to become Ready".into()),
         );
-        with_cockpit_cancel(board, wait_until_sandbox_ready(os, name)).await?;
+        with_cockpit_cancel(
+            board,
+            session_created_at,
+            wait_until_sandbox_ready(os, name),
+        )
+        .await?;
         let _ = with_cockpit_cancel(
             board,
+            session_created_at,
             exec_with_infra_retry(os, name, &empty_workdir_script(), short, "cockpit workdir"),
         )
         .await?;
@@ -3420,7 +3565,12 @@ async fn run_cockpit_inside(
             CockpitSandboxPhase::Provisioning,
             Some("Reusing cockpit sandbox".into()),
         );
-        with_cockpit_cancel(board, wait_until_sandbox_ready(os, name)).await?;
+        with_cockpit_cancel(
+            board,
+            session_created_at,
+            wait_until_sandbox_ready(os, name),
+        )
+        .await?;
     }
 
     // Start the cockpit MCP relay (nc -lU over exec_interactive) before
@@ -3430,26 +3580,34 @@ async fn run_cockpit_inside(
         CockpitSandboxPhase::Provisioning,
         Some("Starting MCP relay".into()),
     );
-    with_cockpit_cancel(board, async {
-        crate::cockpit_mcp_tunnel::ensure_cockpit_mcp_tunnel(os, board, name)
-            .await
-            .map_err(|e| anyhow::anyhow!("{e}"))
-    })
+    with_cockpit_cancel(
+        board,
+        session_created_at,
+        async {
+            crate::cockpit_mcp_tunnel::ensure_cockpit_mcp_tunnel(os, board, name)
+                .await
+                .map_err(|e| anyhow::anyhow!("{e}"))
+        },
+    )
     .await?;
 
     // Inject MCP Bearer + mcp.json so Cockpit's interactive `agent` (and any
     // manual host attach) can call host /mcp without browser OAuth. Subject
     // `cockpit` is the supervisor fallback when no human cookie is in play.
-    if let Err(e) = with_cockpit_cancel(board, async {
-        crate::cockpit_mcp::provision_cockpit_mcp(
-            board,
-            os,
-            name,
-            crate::cockpit_mcp::COCKPIT_FALLBACK_SUB,
-        )
-        .await
-        .map_err(|e| anyhow::anyhow!("{e}"))
-    })
+    if let Err(e) = with_cockpit_cancel(
+        board,
+        session_created_at,
+        async {
+            crate::cockpit_mcp::provision_cockpit_mcp(
+                board,
+                os,
+                name,
+                crate::cockpit_mcp::COCKPIT_FALLBACK_SUB,
+            )
+            .await
+            .map_err(|e| anyhow::anyhow!("{e}"))
+        },
+    )
     .await
     {
         tracing::warn!("cockpit: MCP provision failed (continuing): {e}");
@@ -3465,7 +3623,10 @@ async fn run_cockpit_inside(
     // every few seconds. Park / Stop cancel via ensure_cockpit_running.
     loop {
         tokio::time::sleep(Duration::from_secs(2)).await;
-        ensure_cockpit_running(board)?;
+        ensure_cockpit_session_running(board, Some(session_created_at))?;
+        if !is_sandbox_live(os, name).await {
+            anyhow::bail!("{COCKPIT_CANCEL_UNUSABLE}");
+        }
     }
 }
 
@@ -3520,6 +3681,19 @@ async fn finalize_cockpit(
             crate::cockpit_mcp_tunnel::stop_cockpit_mcp_tunnel(os).await;
             stop_agent(os, name).await;
             tracing::info!("cockpit: parked; stopped agent in {name}, sandbox kept");
+        }
+        Err(e) if is_cockpit_superseded(&e.to_string()) => {
+            tracing::info!("cockpit: superseded seat exited without cleanup: {e}");
+        }
+        Err(e) if is_cockpit_unusable(&e.to_string()) => {
+            crate::cockpit_mcp_tunnel::stop_cockpit_mcp_tunnel(os).await;
+            stop_agent(os, name).await;
+            let _ = board.set_cockpit_sandbox_phase(
+                CockpitSandboxPhase::Starting,
+                Some("Recreating unusable cockpit sandbox".into()),
+            );
+            spawn_reap_cockpit_sandbox_force(os.clone(), board.clone(), name.to_string());
+            tracing::warn!("cockpit: sandbox {name} became unusable; reaping for recreation: {e}");
         }
         Err(e) if is_cockpit_stopped(&e.to_string()) => {
             // Stop cleared the session; Start may have already created a new one.
@@ -3679,7 +3853,9 @@ async fn cockpit_seat_loop(board: SharedBoard, _cfg: ExecutionConfig) {
                         Ok(()) => tracing::info!("cockpit: run completed"),
                         Err(e)
                             if is_cockpit_parked(&e.to_string())
-                                || is_cockpit_stopped(&e.to_string()) =>
+                                || is_cockpit_stopped(&e.to_string())
+                                || is_cockpit_superseded(&e.to_string())
+                                || is_cockpit_unusable(&e.to_string()) =>
                         {
                             tracing::info!("cockpit: {e}");
                         }
@@ -3706,7 +3882,9 @@ async fn cockpit_seat_loop(board: SharedBoard, _cfg: ExecutionConfig) {
                     finalize_cockpit(&os, &board2, &name, &result).await;
                 }
                 Err(e)
-                    if is_cockpit_parked(&e.to_string()) || is_cockpit_stopped(&e.to_string()) =>
+                    if is_cockpit_parked(&e.to_string())
+                        || is_cockpit_stopped(&e.to_string())
+                        || is_cockpit_superseded(&e.to_string()) =>
                 {
                     tracing::info!("cockpit: {e}");
                     flag.store(false, Ordering::Relaxed);
@@ -3744,13 +3922,22 @@ pub(crate) fn shell_quote(s: &str) -> String {
     format!("'{}'", s.replace('\'', r"'\''"))
 }
 
-/// Pull a resume handle out of a stream-json line, if present.
+/// Pull a resume handle out of an engine output line, if present.
 ///
 /// Pointer keys come from the engine registry (agy `conversation_id`, Cursor
-/// `session_id`, …). Tolerant across engines so one parser serves supervisor
-/// and cockpit chat.
+/// `session_id`, …). Hermes emits its session id as a plain `session_id:` footer
+/// on stderr, so accept that shape too. Tolerant across engines so one parser
+/// serves supervisor and cockpit chat.
 pub(crate) fn parse_conversation_id(line: &str) -> Option<String> {
-    let v: serde_json::Value = serde_json::from_str(line.trim()).ok()?;
+    let trimmed = line.trim();
+    if let Some(id) = trimmed.strip_prefix("session_id:") {
+        let id = id.trim();
+        if !id.is_empty() {
+            return Some(id.to_string());
+        }
+    }
+
+    let v: serde_json::Value = serde_json::from_str(trimmed).ok()?;
     for key in crate::engine::conversation_id_pointers() {
         if let Some(s) = v.pointer(key).and_then(|x| x.as_str()) {
             let t = s.trim();
@@ -3802,6 +3989,42 @@ mod tests {
         assert!(!board_still_owns_run(State::Backlog));
         assert!(!board_still_owns_run(State::NeedsHuman));
         assert!(!board_still_owns_run(State::Done));
+    }
+
+    #[test]
+    fn reconcile_keeps_compact_and_legacy_card_sandbox_names() {
+        let board = test_board();
+        let project = board
+            .create(None, "project", "why", None, Origin::Human, true, None)
+            .unwrap();
+        let task = board
+            .create(
+                Some(project.id),
+                "task",
+                "intent",
+                Some("dod".into()),
+                Origin::Human,
+                false,
+                None,
+            )
+            .unwrap();
+        let _ = board.transition(task.id, State::Shaping, "test", None);
+        let _ = board.transition(task.id, State::Backlog, "test", None);
+        let _ = board.claim(task.id, "agent-1", None, 60).unwrap();
+        board.set_environment(
+            task.id,
+            Some(crate::schema::card_sandbox_name(task.id, 1)),
+        );
+        let item = board.get(task.id).unwrap();
+
+        assert!(should_keep_sandbox(
+            Some(&item),
+            &crate::schema::card_sandbox_name(task.id, 1)
+        ));
+        assert!(should_keep_sandbox(
+            Some(&item),
+            &crate::schema::legacy_card_sandbox_stem(task.id)
+        ));
     }
 
     #[test]
@@ -4021,8 +4244,8 @@ mod tests {
         let s = pr_lookup_script(&repo_cfg(), "sandboard/card-8");
         assert!(s.contains("gh pr list"), "{s}");
         assert!(
-            s.contains("--head clankrshq:sandboard/card-8"),
-            "cross-fork needs owner:branch: {s}"
+            s.contains("--head sandboard/card-8 --search 'head:clankrshq:sandboard/card-8'"),
+            "cross-fork needs a supported head search qualifier: {s}"
         );
         assert!(
             s.contains(PR_URL_MARK),
@@ -4035,6 +4258,19 @@ mod tests {
         assert!(
             !s.contains("push"),
             "supervisor looks up PRs; agent pushes: {s}"
+        );
+    }
+
+    #[test]
+    fn cross_fork_pr_lookup_uses_gh_supported_head_search() {
+        let s = pr_lookup_script(&repo_cfg(), "sandboard/card-8");
+        assert!(
+            s.contains("--head sandboard/card-8 --search 'head:clankrshq:sandboard/card-8'"),
+            "cross-fork lookup must use a separate head search qualifier: {s}"
+        );
+        assert!(
+            !s.contains("--head clankrshq:sandboard/card-8"),
+            "gh no longer accepts owner:branch in --head: {s}"
         );
     }
 
@@ -4234,7 +4470,7 @@ mod tests {
         assert_eq!(crate::schema::card_branch_name(173), "sandboard/card-173");
         assert_eq!(
             crate::schema::card_sandbox_name(173, 2),
-            "sandboard-card-173-a2"
+            "sb-card-173-a2"
         );
         let b = briefing(
             &grant(),
@@ -4445,6 +4681,27 @@ mod tests {
         assert!(
             s.contains(r#"$SANDBOARD_BRIEFING"#),
             "inner shell reads the var: {s}"
+        );
+    }
+
+    #[test]
+    fn start_script_materializes_hermes_query_file_before_detach() {
+        let s = start_script(&repo_cfg(), "it's a card; $(not shell)", "hermes", None, None)
+            .unwrap();
+        assert!(
+            s.contains("printf '%s' \"$SANDBOARD_BRIEFING\" > /tmp/sandboard-hermes-query"),
+            "{s}"
+        );
+        assert!(
+            s.contains("hermes --yolo --accept-hooks --provider openrouter chat --query-file /tmp/sandboard-hermes-query"),
+            "{s}"
+        );
+        assert!(
+            s.contains(&format!(
+                "SANDBOARD_BRIEFING={}",
+                shell_quote("it's a card; $(not shell)")
+            )),
+            "{s}"
         );
     }
 
@@ -4859,6 +5116,15 @@ mod tests {
         assert!(script.contains("unset CLAUDE_CODE_USE_VERTEX"), "{script}");
     }
 
+    #[test]
+    fn hermes_session_footer_is_a_resume_handle() {
+        assert_eq!(
+            parse_conversation_id("\nsession_id: 20260828_120000_a1b2c3\n"),
+            Some("20260828_120000_a1b2c3".into())
+        );
+        assert_eq!(parse_conversation_id("session_id:   "), None);
+    }
+
     /// Following is a *reader*. It can start part-way through, which is what
     /// lets a restarted sandboard take over a run instead of killing it.
     #[test]
@@ -5001,6 +5267,43 @@ mod tests {
         b.create_cockpit_session(Some("sandboard-cockpit".into()), None)
             .expect("start again");
         assert!(cockpit_session_wants_sandbox(&b, "sandboard-cockpit"));
+    }
+
+    #[test]
+    fn cockpit_seat_rejects_a_session_replaced_during_a_fast_restart() {
+        let b = test_board();
+        let first = b.create_cockpit_session(None, None).expect("start");
+        b.stop_cockpit_session().expect("stop");
+        b.create_cockpit_session(None, None).expect("start again");
+
+        let err = ensure_cockpit_session_running(&b, Some(first.created_at))
+            .expect_err("the old seat must cancel after Start replaces its session");
+        assert_eq!(err.to_string(), COCKPIT_CANCEL_SUPERSEDED);
+    }
+
+    #[test]
+    fn an_error_phase_sandbox_still_occupies_the_cockpit_name() {
+        let sandbox = crate::openshell::Sandbox {
+            name: "sandboard-cockpit".into(),
+            id: Some("sandbox-id".into()),
+            phase: Some("Error".into()),
+            labels: Default::default(),
+        };
+
+        assert!(cockpit_sandbox_name_is_present(
+            std::slice::from_ref(&sandbox),
+            "sandboard-cockpit"
+        ));
+        assert!(!cockpit_sandbox_name_is_present(
+            std::slice::from_ref(&sandbox),
+            "other-sandbox"
+        ));
+    }
+
+    #[test]
+    fn an_unusable_cockpit_failure_is_recoverable_not_a_session_cancel() {
+        assert!(is_cockpit_unusable(COCKPIT_CANCEL_UNUSABLE));
+        assert!(!is_cockpit_superseded(COCKPIT_CANCEL_UNUSABLE));
     }
 
     #[test]
@@ -6334,6 +6637,51 @@ mod tests {
             seed.escalation
         );
         assert!(board.get(project.id).unwrap().plan.is_none());
+    }
+
+    #[tokio::test]
+    async fn initial_plan_without_verdict_escalates_instead_of_looking_up_an_empty_repo() {
+        let board = test_board();
+        let project = board
+            .create(None, "Proj", "why", None, Origin::Human, true, None)
+            .unwrap();
+        let seed = board.init_plan(project.id).expect("init_plan");
+        let seed_id = seed.id;
+        let _ = board.transition(project.id, State::Shaping, "t", None);
+        let _ = board.claim(seed_id, "agent-1", None, 60).unwrap();
+        let _ = board.transition(seed_id, State::Running, "agent-1", None);
+
+        let os = OpenShell::mock(
+            |_| crate::openshell::Output {
+                code: 0,
+                stdout: String::new(),
+                stderr: String::new(),
+            },
+            Duration::from_secs(5),
+        );
+        finish(
+            &board,
+            &os,
+            &AgentConfig::default(),
+            "agent-1",
+            seed_id,
+            "sandbox-1",
+            "sandboard/card-ip3",
+            &crate::openshell::Output {
+                code: 0,
+                stdout: String::new(),
+                stderr: String::new(),
+            },
+        )
+        .await
+        .expect("missing initial-plan verdict should be handled");
+
+        let seed = board.get(seed_id).unwrap();
+        assert_eq!(seed.state, State::NeedsHuman);
+        assert!(seed
+            .escalation
+            .as_ref()
+            .is_some_and(|e| e.question.contains("plan.json")));
     }
 
     #[tokio::test]

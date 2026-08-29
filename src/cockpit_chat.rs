@@ -113,6 +113,7 @@ fn turn_script(
         .map(|c| format!("export SANDBOARD_CONVERSATION={}\n", shell_quote(c)))
         .unwrap_or_default();
     let inference_exports = crate::engine::anthropic_inference_exports(engine);
+    let hermes_inference_exports = crate::engine::hermes_inference_exports(engine);
     let agy_cloud = if engine.trim() == "agy" {
         format!(
             "{agy_cloud_exports}export PATH=/sandbox/.local/bin:$PATH\n\
@@ -124,10 +125,18 @@ fn turn_script(
     } else {
         String::new()
     };
+    let hermes_query_setup = if engine.trim() == "hermes" {
+        format!(
+            "printf '%s' \"$SANDBOARD_PROMPT\" > {}\n",
+            crate::engine::HERMES_QUERY_FILE
+        )
+    } else {
+        String::new()
+    };
     Ok(format!(
         r#"set -e
 export SANDBOARD_PROMPT={prompt}
-{agy_cloud}{inference_exports}{conv_export}cd {WORKDIR} 2>/dev/null || cd /
+{hermes_query_setup}{agy_cloud}{inference_exports}{hermes_inference_exports}{conv_export}cd {WORKDIR} 2>/dev/null || cd /
 timeout --foreground {secs} {cmd}"#,
         prompt = shell_quote(prompt),
     ))
@@ -350,6 +359,26 @@ mod tests {
         let model_at = s.find("--model").expect("model");
         let p_at = s.find("-p \"$SANDBOARD_PROMPT\"").expect("-p");
         assert!(model_at < p_at, "{s}");
+    }
+
+    #[test]
+    fn turn_script_materializes_hermes_query_file() {
+        let s = turn_script("hermes", "quotes ' and $(not shell)", None, "", None).unwrap();
+        assert!(
+            s.contains("printf '%s' \"$SANDBOARD_PROMPT\" > /tmp/sandboard-hermes-query"),
+            "{s}"
+        );
+        assert!(
+            s.contains("hermes --yolo --accept-hooks --provider openrouter chat --query-file /tmp/sandboard-hermes-query"),
+            "{s}"
+        );
+        assert!(
+            s.contains(&format!(
+                "SANDBOARD_PROMPT={}",
+                shell_quote("quotes ' and $(not shell)")
+            )),
+            "{s}"
+        );
     }
 
     #[test]

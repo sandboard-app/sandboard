@@ -5,9 +5,8 @@
 //! Builtin OpenShell types (including egress-only `cursor`) stay on the gateway.
 
 use crate::model::{
-    OpenShellProviderTypeDesired, ANTIGRAVITY_PROVIDER, ANTIGRAVITY_PROVIDER_TYPE_NAME,
-    CURSOR_AGENT_PROVIDER_TYPE, CURSOR_AGENT_PROVIDER_TYPE_NAME, GITHUB_APP_PROVIDER_TYPE,
-    GITHUB_APP_PROVIDER_TYPE_NAME,
+    OpenShellProviderTypeDesired, ANTIGRAVITY_PROVIDER, CURSOR_AGENT_PROVIDER_TYPE,
+    GITHUB_APP_PROVIDER_TYPE, OPENROUTER_HERMES_PROVIDER_TYPE,
 };
 use crate::openshell::{OpenShell, ProviderTypeProfile};
 use crate::store::{Board, SharedBoard};
@@ -15,6 +14,8 @@ use crate::store::{Board, SharedBoard};
 const ANTIGRAVITY_YAML: &str = include_str!("../sandbox/openshell/antigravity.yaml");
 const CURSOR_AGENT_YAML: &str = include_str!("../sandbox/openshell/cursor-agent.yaml");
 const GITHUB_APP_YAML: &str = include_str!("../sandbox/openshell/github-app.yaml");
+const OPENROUTER_HERMES_YAML: &str =
+    include_str!("../sandbox/openshell/openrouter-hermes.yaml");
 
 /// Parsed metadata used by API upsert and catalog merge.
 #[derive(Debug, Clone)]
@@ -40,6 +41,12 @@ pub fn shipped_provider_types() -> Vec<OpenShellProviderTypeDesired> {
         OpenShellProviderTypeDesired {
             id: CURSOR_AGENT_PROVIDER_TYPE.into(),
             yaml: CURSOR_AGENT_YAML.trim().to_string(),
+            shipped: true,
+            form_config_keys: vec![],
+        },
+        OpenShellProviderTypeDesired {
+            id: OPENROUTER_HERMES_PROVIDER_TYPE.into(),
+            yaml: OPENROUTER_HERMES_YAML.trim().to_string(),
             shipped: true,
             form_config_keys: vec![],
         },
@@ -101,33 +108,47 @@ pub fn parse_provider_type_yaml(
     Ok(parsed)
 }
 
-/// Import every board custom type to the gateway. Missing types are imported;
-/// `already exists` is treated as success (no update path yet).
+/// Reconcile every board custom type with the gateway.
 pub async fn import_board_types_to_gateway(
     board: &SharedBoard,
     os: &OpenShell,
 ) -> Result<(), String> {
     let types = board.openshell_provider_types();
     for entry in types.values() {
-        let source = if entry.id == ANTIGRAVITY_PROVIDER {
-            ANTIGRAVITY_PROVIDER_TYPE_NAME
-        } else if entry.id == CURSOR_AGENT_PROVIDER_TYPE {
-            CURSOR_AGENT_PROVIDER_TYPE_NAME
-        } else if entry.id == GITHUB_APP_PROVIDER_TYPE {
-            GITHUB_APP_PROVIDER_TYPE_NAME
-        } else {
-            entry.id.as_str()
+        os.upsert_provider_type_yaml(&entry.id, &entry.yaml)
+            .await
+            .map_err(|e| format!("reconcile provider type {}: {e}", entry.id))?;
+    }
+    Ok(())
+}
+
+/// Reconcile only the custom provider types needed by one sandbox.
+///
+/// Dispatch must not be blocked by an unrelated provider profile that is
+/// invalid on the local gateway; built-in provider types are already owned by
+/// OpenShell and are intentionally skipped when Board has no custom entry.
+pub async fn import_attached_provider_types_to_gateway(
+    board: &SharedBoard,
+    os: &OpenShell,
+    provider_names: &[String],
+) -> Result<(), String> {
+    let desired = board.openshell_providers();
+    let types = board.openshell_provider_types();
+    let mut type_ids = std::collections::BTreeSet::new();
+    for name in provider_names {
+        let provider = desired
+            .iter()
+            .find(|p| p.name == *name)
+            .ok_or_else(|| format!("provider {name:?} is not in Board desired state"))?;
+        type_ids.insert(provider.provider_type.clone());
+    }
+    for type_id in type_ids {
+        let Some(entry) = types.values().find(|entry| entry.id == type_id) else {
+            continue;
         };
-        match os.import_provider_type_yaml(source, &entry.yaml).await {
-            Ok(()) => {}
-            Err(e) => {
-                let msg = e.to_string();
-                if msg.to_ascii_lowercase().contains("already exists") {
-                    continue;
-                }
-                return Err(format!("import provider type {}: {msg}", entry.id));
-            }
-        }
+        os.upsert_provider_type_yaml(&entry.id, &entry.yaml)
+            .await
+            .map_err(|e| format!("reconcile provider type {}: {e}", entry.id))?;
     }
     Ok(())
 }
@@ -260,11 +281,31 @@ mod tests {
             .credential_env_vars
             .iter()
             .any(|e| e == "CURSOR_API_KEY"));
+        let cursor_profile = openshell_providers::parse_profile_yaml(CURSOR_AGENT_YAML).unwrap();
+        assert_eq!(
+            cursor_profile
+                .endpoints
+                .iter()
+                .filter(|endpoint| endpoint.allow_uninspected_credentials)
+                .count(),
+            4
+        );
 
         let gh =
             parse_provider_type_yaml(GITHUB_APP_YAML, Some(GITHUB_APP_PROVIDER_TYPE)).unwrap();
         assert_eq!(gh.id, GITHUB_APP_PROVIDER_TYPE);
         assert!(gh.credential_env_vars.iter().any(|e| e == "GH_TOKEN"));
+
+        let openrouter = parse_provider_type_yaml(
+            OPENROUTER_HERMES_YAML,
+            Some(OPENROUTER_HERMES_PROVIDER_TYPE),
+        )
+        .unwrap();
+        assert_eq!(openrouter.id, OPENROUTER_HERMES_PROVIDER_TYPE);
+        assert!(openrouter
+            .credential_env_vars
+            .iter()
+            .any(|e| e == "OPENROUTER_API_KEY"));
     }
 
     #[test]
@@ -272,11 +313,12 @@ mod tests {
         let b = temp_board();
         assert!(b.openshell_provider_types().is_empty());
         let added = ensure_shipped_on_board(&b);
-        assert_eq!(added, 3);
+        assert_eq!(added, 4);
         let types = b.openshell_provider_types();
         assert!(types.contains_key(ANTIGRAVITY_PROVIDER));
         assert!(types.contains_key(CURSOR_AGENT_PROVIDER_TYPE));
         assert!(types.contains_key(GITHUB_APP_PROVIDER_TYPE));
+        assert!(types.contains_key(OPENROUTER_HERMES_PROVIDER_TYPE));
         assert_eq!(ensure_shipped_on_board(&b), 0);
     }
 
@@ -342,6 +384,101 @@ mod tests {
         assert!(
             got.iter().any(|s| s.contains("github-app")),
             "expected github-app import, got {got:?}"
+        );
+        assert!(
+            got.iter()
+                .any(|s| s.contains(OPENROUTER_HERMES_PROVIDER_TYPE)),
+            "expected openrouter-hermes import, got {got:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn attached_import_skips_unrelated_provider_types() {
+        use crate::model::OpenShellProviderDesired;
+        use std::sync::{Arc, Mutex};
+
+        let seen: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
+        let seen2 = seen.clone();
+        let os = OpenShell::mock(
+            move |args| {
+                if args.first().map(String::as_str) == Some("provider")
+                    && args.get(2).map(String::as_str) == Some("import")
+                {
+                    seen2
+                        .lock()
+                        .unwrap()
+                        .push(args.get(3).cloned().unwrap_or_default());
+                }
+                crate::openshell::Output {
+                    code: 0,
+                    stdout: String::new(),
+                    stderr: String::new(),
+                }
+            },
+            std::time::Duration::from_secs(5),
+        );
+        let b = temp_board();
+        ensure_shipped_on_board(&b);
+        b.upsert_openshell_provider(
+            OpenShellProviderDesired {
+                name: "hermes".into(),
+                provider_type: OPENROUTER_HERMES_PROVIDER_TYPE.into(),
+                config: Default::default(),
+                credentials_sealed: None,
+                credential_keys: vec!["OPENROUTER_API_KEY".into()],
+                refresh: None,
+            }
+            .normalized(),
+        );
+
+        import_attached_provider_types_to_gateway(
+            &b,
+            &os,
+            &["hermes".to_string()],
+        )
+        .await
+        .unwrap();
+        assert_eq!(
+            seen.lock().unwrap().as_slice(),
+            &[OPENROUTER_HERMES_PROVIDER_TYPE.to_string()]
+        );
+    }
+
+    #[tokio::test]
+    async fn import_updates_existing_board_type() {
+        use std::sync::{Arc, Mutex};
+        let seen: Arc<Mutex<Vec<Vec<String>>>> = Arc::new(Mutex::new(Vec::new()));
+        let seen2 = seen.clone();
+        let os = OpenShell::mock(
+            move |args| {
+                seen2.lock().unwrap().push(args.to_vec());
+                if args.get(2).map(String::as_str) == Some("import") {
+                    return crate::openshell::Output {
+                        code: 1,
+                        stdout: String::new(),
+                        stderr: "profile already exists".into(),
+                    };
+                }
+                crate::openshell::Output {
+                    code: 0,
+                    stdout: String::new(),
+                    stderr: String::new(),
+                }
+            },
+            std::time::Duration::from_secs(5),
+        );
+        let b = temp_board();
+        ensure_shipped_on_board(&b);
+
+        import_board_types_to_gateway(&b, &os).await.unwrap();
+
+        let calls = seen.lock().unwrap();
+        assert!(
+            calls.iter().any(|args| {
+                args.get(2).map(String::as_str) == Some("update")
+                    && args.iter().any(|arg| arg.contains("cursor-agent"))
+            }),
+            "expected an update after import conflict, got {calls:?}"
         );
     }
 

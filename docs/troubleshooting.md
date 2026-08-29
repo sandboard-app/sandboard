@@ -35,7 +35,7 @@ directly.
 
 A **failed card keeps its sandbox** rather than deleting it. `openshell logs` is
 the tool that answers questions and a deleted sandbox answers none. Sandbox
-names are attempt-scoped (`sandboard-card-8-a2`), so a retry never collides with the
+Sandbox names are attempt-scoped (`sb-card-8-a2`), so a retry never collides with the
 one being kept for inspection, and `reconcile` clears them at next startup.
 
 ## Common causes

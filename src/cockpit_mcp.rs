@@ -1,6 +1,6 @@
 //! Inject MCP client config into sandboxes (cockpit + optional workers).
 //!
-//! Catalog entries (`McpServerDesired`) render into Cursor/Claude/agy/OpenCode
+//! Catalog entries (`McpServerDesired`) render into Cursor/Claude/agy/OpenCode/Hermes
 //! shapes under `/sandbox/.sandboard/mcp/`. Cockpit's shipped `sandboard` entry is stdio
 //! over a local Unix socket (`cockpit_mcp_tunnel`); vestigial JWTs may still be
 //! minted for older HTTP paths (`mcp_oauth`).
@@ -34,6 +34,10 @@ pub const COCKPIT_AGY_MCP_CONFIG: &str = "/sandbox/.gemini/config/mcp_config.jso
 
 /// OpenCode global config (`~/.config/opencode/opencode.jsonc`) — MCP lives under `mcp`.
 pub const COCKPIT_OPENCODE_CONFIG: &str = "/sandbox/.config/opencode/opencode.jsonc";
+
+/// Hermes MCP fragment. The Hermes launcher merges this into its config before
+/// starting, keeping the image's baseline config separate from Board injection.
+pub const COCKPIT_HERMES_MCP_FRAGMENT: &str = "/sandbox/.sandboard/mcp/hermes_mcp.yaml";
 
 /// Fallback principal when no browser session is available (supervisor reconcile).
 pub const COCKPIT_FALLBACK_SUB: &str = "cockpit";
@@ -140,6 +144,10 @@ async fn inject_sandbox_mcp(
     let mcp_path = staging.join("mcp.json");
     let claude_path = staging.join("claude_mcp.json");
     let opencode_path = staging.join("opencode.jsonc");
+    let hermes_filename = std::path::Path::new(COCKPIT_HERMES_MCP_FRAGMENT)
+        .file_name()
+        .ok_or_else(|| Error::Msg("Hermes MCP fragment path has no filename".into()))?;
+    let hermes_path = staging.join(hermes_filename);
     let env_path = staging.join("env.sh");
     std::fs::write(&mcp_path, &mcp_bytes)?;
     // Same Cursor-shaped map for Claude Code's config reader.
@@ -147,6 +155,9 @@ async fn inject_sandbox_mcp(
     let opencode_bytes = serde_json::to_vec_pretty(&opencode_jsonc_document(tokens, servers))
         .map_err(|e| Error::Msg(e.to_string()))?;
     std::fs::write(&opencode_path, &opencode_bytes)?;
+    let hermes_yaml = serde_yaml::to_string(&hermes_mcp_document(tokens, servers))
+        .map_err(|e| Error::Msg(e.to_string()))?;
+    std::fs::write(&hermes_path, hermes_yaml)?;
 
     // Nothing to export: the shipped sandboard entry is stdio over a local Unix
     // socket (see mcp.json / cockpit_mcp_tunnel::AGENT_SOCK_PATH) — no URL,
@@ -190,6 +201,8 @@ async fn inject_sandbox_mcp(
     os.upload(sandbox, claude_path.to_str().unwrap(), COCKPIT_MCP_DIR)
         .await?;
     os.upload(sandbox, opencode_path.to_str().unwrap(), COCKPIT_MCP_DIR)
+        .await?;
+    os.upload(sandbox, hermes_path.to_str().unwrap(), COCKPIT_MCP_DIR)
         .await?;
     os.upload(sandbox, env_path.to_str().unwrap(), COCKPIT_MCP_DIR)
         .await?;
@@ -381,6 +394,54 @@ pub fn opencode_jsonc_document(
         "$schema": "https://opencode.ai/config.json",
         "mcp": Value::Object(map)
     })
+}
+
+/// Build Hermes' `mcp_servers` YAML-compatible document.
+///
+/// Hermes uses its own config shape rather than the Cursor/OpenCode `type`
+/// discriminator. The launcher merges this Board-owned fragment into the
+/// image's baseline config immediately before each headless or interactive run.
+pub fn hermes_mcp_document(
+    tokens: Option<&OpsMcpTokens>,
+    servers: &[McpServerDesired],
+) -> serde_json::Value {
+    let mut map = Map::new();
+    for server in servers {
+        let entry = match &server.transport {
+            McpTransport::Http { url, auth } => {
+                let Some(url) = resolve_http_url(url, auth, tokens) else {
+                    continue;
+                };
+                let mut entry = Map::new();
+                entry.insert("url".into(), json!(url));
+                if let Some(headers) = http_headers(auth, tokens) {
+                    entry.insert("headers".into(), headers);
+                }
+                Value::Object(entry)
+            }
+            McpTransport::Stdio {
+                command,
+                args,
+                ..
+            } => {
+                let Some((command, args)) = resolve_stdio_command(command, args) else {
+                    continue;
+                };
+                let env = if is_sandboard_uds_relay(&command, &args) {
+                    local_stdio_env()
+                } else {
+                    stdio_env(&server.env)
+                };
+                json!({
+                    "command": command,
+                    "args": args,
+                    "env": env,
+                })
+            }
+        };
+        map.insert(server.id.clone(), entry);
+    }
+    json!({ "mcp_servers": Value::Object(map) })
 }
 
 fn render_cursor_entry(server: &McpServerDesired, tokens: Option<&OpsMcpTokens>) -> Option<Value> {
@@ -655,6 +716,22 @@ mod tests {
             json!([SANDBOARD_MCP_STDIO_WRAPPER])
         );
         assert!(oc["mcp"]["sandboard"]["environment"].get("ALL_PROXY").is_none());
+    }
+
+    #[test]
+    fn hermes_mcp_document_uses_hermes_server_shape() {
+        let sandboard = McpServerDesired::shipped_sandboard();
+        let doc = hermes_mcp_document(None, std::slice::from_ref(&sandboard));
+        let entry = &doc["mcp_servers"]["sandboard"];
+        assert_eq!(entry["command"], SANDBOARD_MCP_STDIO_WRAPPER);
+        assert_eq!(entry["args"], json!([]));
+        assert_eq!(entry["env"]["HOME"], "/sandbox");
+        assert!(entry.get("type").is_none());
+        assert!(doc["mcp_servers"]["sandboard"].get("url").is_none());
+
+        let yaml = serde_yaml::to_string(&doc).expect("Hermes YAML");
+        assert!(yaml.contains("mcp_servers:"), "{yaml}");
+        assert!(yaml.contains("command: /sandbox/.sandboard/mcp/sandboard-mcp-stdio"), "{yaml}");
     }
 
     #[test]

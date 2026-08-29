@@ -206,7 +206,7 @@ pub struct AgentConfig {
     #[serde(default)]
     pub memory: Option<String>,
     /// Sandboxes are heavy and this is alpha software. Do not start at seven.
-    /// Primary agent CLI engine (`cursor`, `agy`, `claude`, or `opencode`).
+    /// Primary agent CLI engine (`cursor`, `agy`, `claude`, `opencode`, or `hermes`).
     /// Seeded into profiles / Agent runtime from compiled defaults.
     #[serde(default = "d_engine")]
     pub engine: String,
@@ -229,21 +229,28 @@ fn d_concurrent() -> usize { 2 }
 fn d_agent_timeout() -> u64 { 1800 }
 fn d_max_attempts() -> u32 { 3 }
 
-/// Fixed stem for card branches / sandboxes / cockpit (`sandboard/card-N`, …).
+/// Fixed stem for card branches and the Cockpit (`sandboard/card-N`, …).
 pub const BRANCH_STEM: &str = "sandboard";
+/// Short stem for OpenShell card sandbox names (OpenShell allows 19 characters).
+pub const SANDBOX_STEM: &str = "sb";
 
 /// Card feature branch: `sandboard/card-{id}`.
 pub fn card_branch_name(id: impl std::fmt::Display) -> String {
     format!("{BRANCH_STEM}/card-{id}")
 }
 
-/// Sandbox name: `sandboard-card-{id}-a{attempt}`.
+/// Sandbox name: `sb-card-{id}-a{attempt}`.
 pub fn card_sandbox_name(id: impl std::fmt::Display, attempt: u32) -> String {
-    format!("{BRANCH_STEM}-card-{id}-a{attempt}")
+    format!("{SANDBOX_STEM}-card-{id}-a{attempt}")
 }
 
-/// Prefix match stem for reconcile keep: `sandboard-card-{id}-`.
+/// Prefix match stem for reconcile keep: `sb-card-{id}-`.
 pub fn card_sandbox_stem(id: impl std::fmt::Display) -> String {
+    format!("{SANDBOX_STEM}-card-{id}-")
+}
+
+/// Prefix for card sandboxes created before the OpenShell name limit fix.
+pub fn legacy_card_sandbox_stem(id: impl std::fmt::Display) -> String {
     format!("{BRANCH_STEM}-card-{id}-")
 }
 
@@ -425,8 +432,9 @@ mod tests {
     #[test]
     fn card_branch_and_sandbox_names_are_fixed_sandboard() {
         assert_eq!(card_branch_name(7), "sandboard/card-7");
-        assert_eq!(card_sandbox_name(7, 2), "sandboard-card-7-a2");
-        assert_eq!(card_sandbox_stem(9), "sandboard-card-9-");
+        assert_eq!(card_sandbox_name(7, 2), "sb-card-7-a2");
+        assert_eq!(card_sandbox_stem(9), "sb-card-9-");
+        assert!(card_sandbox_name(66, 2).len() <= 19);
         assert_eq!(cockpit_sandbox_name(), "sandboard-cockpit");
     }
 

@@ -5,43 +5,42 @@ under [`sandbox/`](https://github.com/sandboard-app/sandboard/tree/main/sandbox)
 
 ## How credentials reach the agent
 
-Claude Code and OpenCode talk to OpenShell's local inference router. The
-gateway holds Vertex (or other provider) credentials and injects them on
-egress — nothing in the sandbox does GCP ADC or metadata discovery.
+Claude Code and OpenCode talk to OpenShell's local inference router. Hermes is
+different: its seeded profile attaches the endpoint-bearing `openrouter-hermes`
+provider, which injects `OPENROUTER_API_KEY` into the Hermes process and scopes
+that key to OpenRouter egress. The key is sealed by OpenShell and never baked
+into the image or copied from the host at runtime.
 
 ```
-openshell inference set --provider vertex --model claude-sonnet-4-6@default
+openshell provider create --name openrouter-hermes --type openrouter-hermes \
+  --credential OPENROUTER_API_KEY
         │
         ▼
 sandbox agent
-  ANTHROPIC_BASE_URL=https://inference.local[/v1]
-  ANTHROPIC_API_KEY=unused
+  OPENROUTER_API_KEY=openshell:resolve:…
         │
         ▼
-https://inference.local  →  gateway strips placeholder key, injects Vertex token
-        │
-        ▼
-aiplatform.googleapis.com (rawPredict / Messages API)
+https://openrouter.ai/api/v1
 ```
 
 Operator setup (once per gateway):
 
 ```bash
-openshell provider create --name vertex --type google-vertex-ai --from-gcloud-adc \
-  --config VERTEX_AI_PROJECT_ID=<project> --config VERTEX_AI_REGION=global
-openshell inference set --provider vertex --model claude-sonnet-4-6@default
+openshell provider create --name openrouter-hermes --type openrouter-hermes \
+  --credential OPENROUTER_API_KEY=<your-key>
 ```
 
 Inside the sandbox sandboard exports (engine-specific):
 
-| Engine | `ANTHROPIC_BASE_URL` | Notes |
+| Engine | Inference env | Notes |
 |---|---|---|
 | `claude` | `https://inference.local` | Claude appends `/v1/messages`; `--bare` + `--mcp-config` for MCP |
 | `opencode` | `https://inference.local/v1` | OpenCode requires the `/v1` suffix |
+| `hermes` | `model.base_url=https://openrouter.ai/api/v1` | Hermes' built-in OpenRouter provider uses the endpoint; the attached `openrouter-hermes` provider supplies `OPENROUTER_API_KEY` as an OpenShell placeholder and the image wrapper keeps `HERMES_HOME` in the sandbox |
 
 Do **not** set `CLAUDE_CODE_USE_VERTEX=1` in the sandbox. That forces direct
 Vertex + ADC/metadata discovery, which OpenShell blocks (real GCE metadata is
-SSRF-hardened). Use `inference.local` instead.
+SSRF-hardened). Use the attached provider and the seeded OpenRouter policy instead.
 
 ## Gateway client (gRPC + mTLS or OIDC)
 
@@ -121,10 +120,11 @@ Which model an agent run uses depends on the engine.
 | `agy` | `card.model` → sandbox spec **model** → `DEFAULT_SEAT_MODEL` (`gemini-3.6-flash-high`) | Optional **Model** on **Settings → OpenShell → Sandbox specs**; per-card `model` on claim overrides the spec |
 | `cursor` | `card.model` → sandbox spec **model** → Cursor account default (no sandboard fallback) | Same optional **Model** field; omit it to use the account default for your API key |
 | `claude`, `opencode` | OpenShell `inference.local` — gateway route from `openshell inference set` | Gateway CLI once per install (see [How credentials reach the agent](#how-credentials-reach-the-agent)); **not** the sandbox spec model field |
+| `hermes` | `card.model` → sandbox spec **model** → Hermes image default (`openai/gpt-4o-mini`) | Optional **Model** field; the `openrouter-hermes` provider supplies `OPENROUTER_API_KEY` |
 
 For engines whose CLI accepts `--model` on launch, sandboard injects the resolved
 value into the supervisor start script and Cockpit attach/chat argv. Today that
-is `agy` and `cursor` (`agent --model`). Put `--model` **before** `-p` when
+is `agy`, `cursor`, and `hermes` (`hermes --model`). Put `--model` **before** `-p` when
 invoking agy manually — `-p` takes the next argv as the prompt.
 
 Seeded sandbox specs load with **model** unset; `agy` cards then get
@@ -138,7 +138,7 @@ minimal Red Hat UBI9 image, not the OpenShell community image — plus a Rust
 toolchain, split into one build target per agent engine. A `shared` stage
 installs OS packages (`git`, `nodejs`/`npm`, `gh`, `gcc`/`make`, `iproute`,
 `nftables`, `socat`) and bakes `cargo`/`clippy`, then one leaf stage per agent
-engine (`cursor`, `agy`, `claude`, `opencode`) installs only that engine's CLI
+engine (`cursor`, `agy`, `claude`, `opencode`, `hermes`) installs only that engine's CLI
 on top — a sandbox only ever carries the one binary it will actually run.
 
 The toolchain is baked in, but sandboard's own source and dependency tree are not.
@@ -167,8 +167,8 @@ prohibited GID 0`). Local runs use owner bits; OpenShift uses group 0 bits.
 
 ```bash
 # from the repo root
-make sandbox        # builds all four quay.io/sandboard-app/sandbox-<engine>:latest
-make sandbox-push   # builds, then pushes all four
+make sandbox        # builds all five quay.io/sandboard-app/sandbox-<engine>:latest
+make sandbox-push   # builds, then pushes all five
 # or: podman build -f sandbox/Containerfile --target cursor -t quay.io/sandboard-app/sandbox-cursor:latest .
 # Docker: CONTAINER_ENGINE=docker make sandbox
 # Different registry: REGISTRY=ghcr.io/you make sandbox
@@ -180,7 +180,10 @@ changes, since none of it is baked in. Matching `/opt` entries belong in the
 **board Policies** catalog (Settings → OpenShell → Policies):
 `/opt/cargo`, `/opt/cargo-target`, `/opt/npm-cache` need **read-write** (a
 card's build populates them, not the image), while `/opt/rust` (+ that
-engine's own `/opt/cursor-agent` or `/opt/opencode`) stays **read-only**.
+engine's own `/opt/cursor-agent`, `/opt/opencode`, or `/opt/hermes`) stays
+**read-only**. The Hermes image also bakes Python 3.12 and an editable Hermes
+installation under `/opt/hermes`; its wrapper keeps runtime state under
+`/sandbox/.hermes` and merges the Board-injected MCP YAML fragment there.
 `src/seed_policies.rs` seeds one minimal Cockpit policy per engine matching
 each split image's contents, including the crates.io/npm/GitHub egress a
 build needs — see [Default vs Cockpit](#default-vs-cockpit).
@@ -232,8 +235,8 @@ helper paths (e.g. `/usr/lib/git-core/git-remote-http`).
 
 ## Default vs Cockpit
 
-Four sandbox specs come seeded — `sandbox-cursor`, `sandbox-agy`,
-`sandbox-claude`, `sandbox-opencode` — one per split image, each pointed at a
+Five sandbox specs come seeded — `sandbox-cursor`, `sandbox-agy`,
+`sandbox-claude`, `sandbox-opencode`, `sandbox-hermes` — one per split image, each pointed at a
 matching minimal Cockpit policy (`cockpit-cursor`, …) with sandboard MCP already
 attached. Seeding never sets a default — which engine to run is your call, and
 a fresh board's Welcome page flags "Sandbox spec" as not ready until you make

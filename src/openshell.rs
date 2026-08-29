@@ -184,6 +184,8 @@ pub struct GatewayProvider {
     pub name: String,
     #[serde(rename = "type")]
     pub provider_type: String,
+    #[serde(default)]
+    pub profile_workspace: String,
     pub credential_keys: Vec<String>,
     pub config_keys: Vec<String>,
 }
@@ -283,6 +285,28 @@ impl Output {
 pub const LABEL_ITEM: &str = "sandboard.item";
 /// Marks the durable control-plane cockpit sandbox (not a card worker).
 pub const LABEL_COCKPIT: &str = "sandboard.cockpit";
+
+const PROVIDER_PROFILE_WORKSPACE: &str = "default";
+
+fn provider_payload(
+    name: &str,
+    provider_type: &str,
+    credentials: BTreeMap<String, String>,
+    config: BTreeMap<String, String>,
+) -> Provider {
+    Provider {
+        metadata: Some(ObjectMeta {
+            name: name.to_string(),
+            ..Default::default()
+        }),
+        r#type: provider_type.to_string(),
+        credentials: credentials.into_iter().collect(),
+        config: config.into_iter().collect(),
+        credential_expires_at_ms: Default::default(),
+        profile_workspace: PROVIDER_PROFILE_WORKSPACE.to_string(),
+        credential_handles: Default::default(),
+    }
+}
 
 #[cfg(test)]
 type MockHandler = std::sync::Arc<dyn Fn(&[String]) -> Output + Send + Sync>;
@@ -772,6 +796,7 @@ impl OpenShell {
             return Ok(GatewayProvider {
                 name: name.to_string(),
                 provider_type: provider_type.to_string(),
+                profile_workspace: PROVIDER_PROFILE_WORKSPACE.to_string(),
                 credential_keys: credentials.keys().cloned().collect(),
                 config_keys: config.keys().cloned().collect(),
             });
@@ -781,18 +806,12 @@ impl OpenShell {
             let mut client = self.connect().await?;
             let resp = client
                 .create_provider(CreateProviderRequest {
-                    provider: Some(Provider {
-                        metadata: Some(ObjectMeta {
-                            name: name.to_string(),
-                            ..Default::default()
-                        }),
-                        r#type: provider_type.to_string(),
-                        credentials: credentials.clone().into_iter().collect(),
-                        config: config.clone().into_iter().collect(),
-                        credential_expires_at_ms: Default::default(),
-                        profile_workspace: String::new(),
-                        credential_handles: Default::default(),
-                    }),
+                    provider: Some(provider_payload(
+                        name,
+                        provider_type,
+                        credentials.clone(),
+                        config.clone(),
+                    )),
                     workspace: String::new(),
                 })
                 .await
@@ -834,6 +853,7 @@ impl OpenShell {
             return Ok(GatewayProvider {
                 name: name.to_string(),
                 provider_type: provider_type.to_string(),
+                profile_workspace: PROVIDER_PROFILE_WORKSPACE.to_string(),
                 credential_keys: credentials.keys().cloned().collect(),
                 config_keys: config.keys().cloned().collect(),
             });
@@ -843,18 +863,12 @@ impl OpenShell {
             let mut client = self.connect().await?;
             let resp = client
                 .update_provider(UpdateProviderRequest {
-                    provider: Some(Provider {
-                        metadata: Some(ObjectMeta {
-                            name: name.to_string(),
-                            ..Default::default()
-                        }),
-                        r#type: provider_type.to_string(),
-                        credentials: credentials.clone().into_iter().collect(),
-                        config: config.clone().into_iter().collect(),
-                        credential_expires_at_ms: Default::default(),
-                        profile_workspace: String::new(),
-                        credential_handles: Default::default(),
-                    }),
+                    provider: Some(provider_payload(
+                        name,
+                        provider_type,
+                        credentials.clone(),
+                        config.clone(),
+                    )),
                     credential_expires_at_ms: Default::default(),
                     workspace: String::new(),
                 })
@@ -1323,13 +1337,28 @@ impl OpenShell {
         refresh: Option<&ProviderRefreshSpec>,
     ) -> Result<GatewayProvider> {
         let existing = self.list_providers().await.unwrap_or_default();
-        let on_gateway = existing.iter().any(|p| p.name == name);
-        let gw = if on_gateway {
-            self.update_provider(name, provider_type, credentials, config)
-                .await?
-        } else {
-            self.create_provider(name, provider_type, credentials, config)
-                .await?
+        let existing_provider = existing.iter().find(|p| p.name == name);
+        let gw = match existing_provider {
+            Some(current)
+                if !current.provider_type.eq_ignore_ascii_case(provider_type)
+                    || current.profile_workspace != PROVIDER_PROFILE_WORKSPACE =>
+            {
+                // OpenShell provider types are immutable. Recreate the instance
+                // rather than leaving a same-named provider with the wrong
+                // credential/endpoint profile or workspace scope after a
+                // desired-state change.
+                self.delete_provider(name).await?;
+                self.create_provider(name, provider_type, credentials, config)
+                    .await?
+            }
+            Some(_) => {
+                self.update_provider(name, provider_type, credentials, config)
+                    .await?
+            }
+            None => {
+                self.create_provider(name, provider_type, credentials, config)
+                    .await?
+            }
         };
         if let Some(r) = refresh {
             self.configure_provider_refresh(name, r).await?;
@@ -2210,6 +2239,10 @@ fn phase_label(phase: i32) -> String {
         SandboxPhase::Provisioning => "Provisioning".into(),
         SandboxPhase::Error => "Error".into(),
         SandboxPhase::Deleting => "Deleting".into(),
+        SandboxPhase::Stopping => "Stopping".into(),
+        SandboxPhase::Stopped => "Stopped".into(),
+        SandboxPhase::Starting => "Starting".into(),
+        SandboxPhase::Completed => "Completed".into(),
         SandboxPhase::Unknown => "Unknown".into(),
         SandboxPhase::Unspecified => "Unspecified".into(),
     }
@@ -2268,12 +2301,15 @@ fn build_create_request(spec: &SandboxSpec) -> Result<CreateSandboxRequest> {
             policy,
             providers: spec.providers.clone(),
             template,
+            command: vec!["/usr/bin/tail".into(), "-f".into(), "/dev/null".into()],
+            tty: false,
             ..ProtoSandboxSpec::default()
         }),
         name: spec.name.clone(),
         labels: labels.into_iter().collect(),
         annotations: Default::default(),
         workspace: String::new(),
+        await_main_process_attachment: false,
     })
 }
 
@@ -2325,6 +2361,7 @@ fn gateway_provider_from_proto(p: Provider) -> GatewayProvider {
     GatewayProvider {
         name,
         provider_type: p.r#type,
+        profile_workspace: p.profile_workspace,
         credential_keys,
         config_keys,
     }
@@ -2517,6 +2554,138 @@ pub(crate) fn is_expected_interactive_disconnect(err: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn apply_provider_recreates_when_gateway_type_differs() {
+        use std::sync::{Arc, Mutex};
+
+        let calls: Arc<Mutex<Vec<Vec<String>>>> = Arc::new(Mutex::new(Vec::new()));
+        let calls_for_handler = calls.clone();
+        let os = OpenShell::mock(
+            move |args| {
+                calls_for_handler.lock().unwrap().push(args.to_vec());
+                if args.first().map(String::as_str) == Some("provider")
+                    && args.get(1).map(String::as_str) == Some("list")
+                {
+                    Output {
+                        code: 0,
+                        stdout: serde_json::to_string(&vec![GatewayProvider {
+                            name: "openrouter-hermes".into(),
+                            provider_type: "generic".into(),
+                            profile_workspace: "default".into(),
+                            credential_keys: vec!["OPENROUTER_API_KEY".into()],
+                            config_keys: vec![],
+                        }])
+                        .unwrap(),
+                        stderr: String::new(),
+                    }
+                } else {
+                    Output {
+                        code: 0,
+                        stdout: String::new(),
+                        stderr: String::new(),
+                    }
+                }
+            },
+            Duration::from_secs(5),
+        );
+
+        os.apply_provider(
+            "openrouter-hermes",
+            "openrouter-hermes",
+            BTreeMap::from([("OPENROUTER_API_KEY".into(), "secret".into())]),
+            BTreeMap::new(),
+            None,
+        )
+        .await
+        .unwrap();
+
+        let calls = calls.lock().unwrap().clone();
+        assert_eq!(calls.len(), 3);
+        assert_eq!(calls[0], vec!["provider", "list", "-o", "json"]);
+        assert_eq!(calls[1], vec!["provider", "delete", "openrouter-hermes"]);
+        assert_eq!(
+            calls[2],
+            vec![
+                "provider",
+                "create",
+                "--name",
+                "openrouter-hermes",
+                "--type",
+                "openrouter-hermes"
+            ]
+        );
+    }
+
+    #[tokio::test]
+    async fn apply_provider_recreates_when_gateway_profile_scope_differs() {
+        let calls: Arc<Mutex<Vec<Vec<String>>>> = Arc::new(Mutex::new(Vec::new()));
+        let calls_for_handler = calls.clone();
+        let os = OpenShell::mock(
+            move |args| {
+                calls_for_handler.lock().unwrap().push(args.to_vec());
+                if args.first().map(String::as_str) == Some("provider")
+                    && args.get(1).map(String::as_str) == Some("list")
+                {
+                    Output {
+                        code: 0,
+                        stdout: serde_json::to_string(&vec![GatewayProvider {
+                            name: "openrouter-hermes".into(),
+                            provider_type: "openrouter-hermes".into(),
+                            profile_workspace: String::new(),
+                            credential_keys: vec!["OPENROUTER_API_KEY".into()],
+                            config_keys: vec![],
+                        }])
+                        .unwrap(),
+                        stderr: String::new(),
+                    }
+                } else {
+                    Output {
+                        code: 0,
+                        stdout: String::new(),
+                        stderr: String::new(),
+                    }
+                }
+            },
+            Duration::from_secs(5),
+        );
+
+        os.apply_provider(
+            "openrouter-hermes",
+            "openrouter-hermes",
+            BTreeMap::from([("OPENROUTER_API_KEY".into(), "secret".into())]),
+            BTreeMap::new(),
+            None,
+        )
+        .await
+        .unwrap();
+
+        let calls = calls.lock().unwrap().clone();
+        assert_eq!(calls.len(), 3);
+        assert_eq!(calls[1], vec!["provider", "delete", "openrouter-hermes"]);
+        assert_eq!(
+            calls[2],
+            vec![
+                "provider",
+                "create",
+                "--name",
+                "openrouter-hermes",
+                "--type",
+                "openrouter-hermes"
+            ]
+        );
+    }
+
+    #[test]
+    fn provider_payload_uses_workspace_profile_scope() {
+        let provider = provider_payload(
+            "sandboard-openrouter-hermes",
+            "openrouter-hermes",
+            BTreeMap::new(),
+            BTreeMap::new(),
+        );
+        assert_eq!(provider.profile_workspace, "default");
+    }
 
     #[test]
     fn expected_interactive_disconnect_matches_teardown_relay() {
@@ -2724,6 +2893,11 @@ mod tests {
             Some("sandboard-sandbox:latest")
         );
         assert!(sandbox_spec.policy.is_some());
+        assert_eq!(
+            sandbox_spec.command,
+            vec!["/usr/bin/tail", "-f", "/dev/null"]
+        );
+        assert!(!sandbox_spec.tty);
         assert_eq!(
             sandbox_spec.environment.get("DISABLE_TELEMETRY").map(String::as_str),
             Some("1")

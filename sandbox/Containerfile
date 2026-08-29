@@ -18,7 +18,7 @@
 #
 # Why one image per engine: each sandbox only carries the CLI it will
 # actually run — no agy/opencode binaries sitting unused (and unaudited) in
-# a Cursor sandbox. `shared` holds everything engine-independent so all four
+# a Cursor sandbox. `shared` holds everything engine-independent so all five
 # targets reuse the same cached layers; only the CLI install happens per
 # leaf stage, so a broken/changed installer script never invalidates the
 # shared layers below it.
@@ -32,12 +32,15 @@
 # every merge to keep pace. Cards build against crates.io/npm directly instead
 # — see the network policy note at the bottom.
 #
-# `make sandbox` builds all four `quay.io/sandboard-app/sandbox-<engine>:latest`;
+# `make sandbox` builds all five `quay.io/sandboard-app/sandbox-<engine>:latest`;
 # `make sandbox-push` also pushes them. Or directly:
 #   podman build -f sandbox/Containerfile --target cursor -t quay.io/sandboard-app/sandbox-cursor:latest .
 #
 # Then pair it with the worker board-profile policy companion entries — see the
 # note at the bottom (and src/seed_policies.rs for the per-engine cockpit seed).
+
+ARG UV_VERSION=0.11.29
+FROM ghcr.io/astral-sh/uv:${UV_VERSION}-python3.13-trixie AS hermes-uv
 
 FROM registry.access.redhat.com/ubi9/ubi:latest AS shared
 
@@ -220,6 +223,39 @@ RUN HOME=/root curl -fsSL https://opencode.ai/install | HOME=/root bash -s -- --
 USER sandbox
 WORKDIR /sandbox
 
+FROM shared AS hermes
+
+# Hermes requires Python 3.11–3.13. Use the UBI9 Python 3.12 package and uv's
+# own static binary only during the build; the runtime wrapper calls the venv
+# directly, so uv is not part of the final image surface.
+ARG HERMES_GIT_URL=https://github.com/NousResearch/hermes-agent.git
+ARG HERMES_GIT_REF=7b5e1911f88be05eb5f9ce34453149dddd95ced3
+COPY --from=hermes-uv /usr/local/bin/uv /usr/local/bin/uv
+RUN dnf install -y --setopt=install_weak_deps=False python3.12 python3.12-pip \
+ && mkdir -p /opt/hermes \
+ && git -C /opt/hermes init \
+ && git -C /opt/hermes remote add origin "${HERMES_GIT_URL}" \
+ && git -C /opt/hermes fetch --depth 1 origin "${HERMES_GIT_REF}" \
+ && git -C /opt/hermes checkout --detach FETCH_HEAD \
+ && cd /opt/hermes \
+ && UV_PYTHON_DOWNLOADS=never UV_CACHE_DIR=/tmp/uv-cache \
+      /usr/local/bin/uv sync --frozen --no-dev --extra mcp \
+        --python /usr/bin/python3.12 \
+ && HOME=/tmp HERMES_HOME=/tmp/hermes-build-home /opt/hermes/.venv/bin/hermes --version \
+ && rm -rf /tmp/hermes-build-home /sandbox/.hermes /opt/hermes/.git /tmp/uv-cache /root/.cache \
+ && rm -f /usr/local/bin/uv \
+ && chmod -R a+rX /opt/hermes \
+ && chgrp -R 0 /opt/hermes \
+ && chmod -R g=u /opt/hermes
+
+COPY sandbox/hermes/config.yaml /usr/share/hermes/config.yaml
+COPY sandbox/hermes/hermes /usr/local/bin/hermes
+RUN chmod 0644 /usr/share/hermes/config.yaml \
+ && chmod 0755 /usr/local/bin/hermes
+
+USER sandbox
+WORKDIR /sandbox
+
 # ---- board profile policy companion changes -------------------------------
 # OpenShell matches binary paths LITERALLY and does not follow the toolchain's
 # own symlinks, so each per-engine sandbox profile's policy needs, at minimum:
@@ -236,6 +272,6 @@ WORKDIR /sandbox
 # cache to fall back on, so denying this egress means every card's first
 # `cargo build`/`npm ci` simply fails.
 # src/seed_policies.rs seeds one minimal cockpit policy per engine
-# (cockpit-cursor, cockpit-agy, cockpit-claude, cockpit-opencode) matching
+# (cockpit-cursor, cockpit-agy, cockpit-claude, cockpit-opencode, cockpit-hermes) matching
 # each split image's contents; edit the live Policy under Settings →
 # OpenShell → Policies if the catalog already exists.

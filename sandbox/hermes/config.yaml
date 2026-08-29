@@ -1,0 +1,6 @@
+# Baseline Hermes configuration for direct OpenRouter access.
+# The launcher overlays the Board-injected MCP fragment before every run.
+model:
+  default: "openai/gpt-4o-mini"
+  provider: "openrouter"
+  base_url: "https://openrouter.ai/api/v1"

@@ -1199,7 +1199,7 @@ pub struct SyncProviderError {
 
 fn provider_view(
     p: &OpenShellProviderDesired,
-    gateway_names: Option<&std::collections::HashSet<String>>,
+    gateway_types: Option<&BTreeMap<String, String>>,
 ) -> OpenShellProviderView {
     OpenShellProviderView {
         name: p.name.clone(),
@@ -1208,7 +1208,10 @@ fn provider_view(
         credential_keys: p.credential_keys.clone(),
         has_credentials: p.has_credentials(),
         has_refresh: p.refresh.is_some(),
-        gateway_synced: gateway_names.map(|g| g.contains(&p.name)),
+        gateway_synced: gateway_types.map(|g| {
+            g.get(&p.name)
+                .is_some_and(|t| t.eq_ignore_ascii_case(&p.provider_type))
+        }),
     }
 }
 
@@ -1358,23 +1361,49 @@ async fn apply_desired_to_gateway(
     .map_err(|e| e.to_string())
 }
 
+/// Reconcile provider profiles and only the instances a sandbox will attach.
+///
+/// Card dispatch cannot assume Settings was opened first: OpenShell resolves a
+/// provider's profile at sandbox creation time, so the profile import and
+/// provider instance must be current before `CreateSandbox`.
+pub(crate) async fn reconcile_attached_providers(
+    b: &SharedBoard,
+    provider_names: &[String],
+) -> Result<(), String> {
+    if provider_names.is_empty() {
+        return Ok(());
+    }
+    let os = b.openshell_client();
+    crate::provider_types::import_attached_provider_types_to_gateway(b, &os, provider_names)
+        .await?;
+    let desired = b.openshell_providers();
+    for name in provider_names {
+        let provider = desired
+            .iter()
+            .find(|p| p.name == *name)
+            .ok_or_else(|| format!("provider {name:?} is not in Board desired state"))?;
+        apply_desired_to_gateway(b, provider).await?;
+    }
+    Ok(())
+}
+
 async fn list_openshell_providers(AxState(b): AxState<SharedBoard>) -> Json<OpenShellProvidersOut> {
     let desired = b.openshell_providers();
     let os = b.openshell_client();
-    let (gateway_reachable, gateway_names) = match os.list_providers().await {
+    let (gateway_reachable, gateway_types) = match os.list_providers().await {
         Ok(list) => (
             true,
             Some(
                 list.into_iter()
-                    .map(|p| p.name)
-                    .collect::<std::collections::HashSet<_>>(),
+                    .map(|p| (p.name, p.provider_type))
+                    .collect::<BTreeMap<_, _>>(),
             ),
         ),
         Err(_) => (false, None),
     };
     let providers = desired
         .iter()
-        .map(|p| provider_view(p, gateway_names.as_ref()))
+        .map(|p| provider_view(p, gateway_types.as_ref()))
         .collect();
     Json(OpenShellProvidersOut {
         providers,
@@ -1415,7 +1444,15 @@ async fn create_openshell_provider(
         b.set_github_app_token_cache(crate::github_app::TokenCache::default());
     }
     // Best-effort apply; desired state is already persisted.
-    let apply_err = apply_desired_to_gateway(&b, &stored).await.err();
+    let apply_err = match crate::provider_types::import_board_types_to_gateway(
+        &b,
+        &b.openshell_client(),
+    )
+    .await
+    {
+        Ok(()) => apply_desired_to_gateway(&b, &stored).await.err(),
+        Err(e) => Some(e),
+    };
     let gateway_synced = match &apply_err {
         None if b.openshell_client().gateway_status().await.healthy => Some(true),
         None => None,
@@ -1484,7 +1521,15 @@ async fn update_openshell_provider(
     {
         b.set_github_app_token_cache(crate::github_app::TokenCache::default());
     }
-    let apply_err = apply_desired_to_gateway(&b, &stored).await.err();
+    let apply_err = match crate::provider_types::import_board_types_to_gateway(
+        &b,
+        &b.openshell_client(),
+    )
+    .await
+    {
+        Ok(()) => apply_desired_to_gateway(&b, &stored).await.err(),
+        Err(e) => Some(e),
+    };
     let mut view = provider_view(&stored, None);
     view.gateway_synced = Some(apply_err.is_none());
     Ok(Json(view))
@@ -2277,6 +2322,25 @@ async fn github_webhook(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn provider_view_is_not_synced_when_gateway_type_is_generic() {
+        let provider = OpenShellProviderDesired {
+            name: "sandboard-openrouter-hermes".into(),
+            provider_type: "openrouter-hermes".into(),
+            config: BTreeMap::new(),
+            credentials_sealed: Some("sealed".into()),
+            credential_keys: vec!["OPENROUTER_API_KEY".into()],
+            refresh: None,
+        };
+        let gateway_types = BTreeMap::from([(
+            "sandboard-openrouter-hermes".into(),
+            "generic".into(),
+        )]);
+
+        let view = provider_view(&provider, Some(&gateway_types));
+        assert_eq!(view.gateway_synced, Some(false));
+    }
 
     #[tokio::test]
     async fn item_detail_and_snapshot_show_task_repo_when_set() {
@@ -4840,8 +4904,8 @@ mod tests {
         assert!(
             calls.iter().any(|a| {
                 a.windows(4).any(|w| {
-                    w == ["provider", "profile", "import", "antigravity.yaml"]
-                        || w == ["provider", "profile", "import", "cursor-agent.yaml"]
+                    w == ["provider", "profile", "import", "antigravity"]
+                        || w == ["provider", "profile", "import", "cursor-agent"]
                 })
             }),
             "sync should import shipped board types: {calls:?}"

@@ -558,7 +558,7 @@ impl OpenShellProviderDesired {
 /// a Settings knob).
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct AgentRuntimeConfig {
-    /// Primary agent CLI (`cursor`, `agy`, `claude`, or `opencode`).
+    /// Primary agent CLI (`cursor`, `agy`, `claude`, `opencode`, or `hermes`).
     #[serde(default = "default_runtime_engine")]
     pub engine: String,
     #[serde(default = "default_runtime_concurrent")]
@@ -1128,11 +1128,11 @@ pub struct SandboxProfile {
     pub cpu: Option<String>,
     #[serde(default)]
     pub memory: Option<String>,
-    /// Agent CLI for cards using this profile (`cursor`, `agy`, `claude`, `opencode`).
+    /// Agent CLI for cards using this profile (`cursor`, `agy`, `claude`, `opencode`, `hermes`).
     /// When unset, claim/run falls back to Settings → Agent runtime engine.
     #[serde(default)]
     pub engine: Option<String>,
-    /// Model passed to the agent CLI when set (`agy --model`, etc.).
+    /// Model passed to the agent CLI when set (`agy --model`, `hermes --model`, etc.).
     /// When unset, claim/run resolves card.model → engine default.
     #[serde(default)]
     pub model: Option<String>,
@@ -1193,22 +1193,16 @@ pub fn sandbox_profile_create_defaults() -> SandboxProfileCreateDefaults {
 /// OpenShell provider instance name / provider type id for Antigravity (`agy`).
 pub const ANTIGRAVITY_PROVIDER: &str = "antigravity";
 
-/// Shipped OpenShell provider type YAML filename (import source label).
-pub const ANTIGRAVITY_PROVIDER_TYPE_NAME: &str = "antigravity.yaml";
-
 /// Custom board provider type for Cursor Agent CLI (`CURSOR_API_KEY`).
 /// Distinct from OpenShell builtin `cursor` (egress-only, no credentials).
 pub const CURSOR_AGENT_PROVIDER_TYPE: &str = "cursor-agent";
 
-/// Shipped OpenShell provider type YAML filename for Cursor Agent.
-pub const CURSOR_AGENT_PROVIDER_TYPE_NAME: &str = "cursor-agent.yaml";
+/// Custom board provider type for Hermes Agent's OpenRouter API key.
+pub const OPENROUTER_HERMES_PROVIDER_TYPE: &str = "openrouter-hermes";
 
 /// Custom board provider type for GitHub App–minted `GH_TOKEN`.
 /// Distinct from OpenShell builtin `github` (paste a PAT).
 pub const GITHUB_APP_PROVIDER_TYPE: &str = "github-app";
-
-/// Shipped OpenShell provider type YAML filename for GitHub App.
-pub const GITHUB_APP_PROVIDER_TYPE_NAME: &str = "github-app.yaml";
 
 /// Board-owned OpenShell provider type profile (Settings → OpenShell → Provider types).
 ///
@@ -1861,6 +1855,12 @@ mod tests {
         );
         assert!(defaults.cpu.is_none());
         assert!(defaults.memory.is_none());
+    }
+
+    #[test]
+    fn hermes_cockpit_policy_parses() {
+        openshell_policy::parse_sandbox_policy(crate::seed_policies::COCKPIT_HERMES_POLICY)
+            .expect("Hermes cockpit policy parses");
     }
 
     #[test]
