@@ -123,8 +123,8 @@ edited in **Settings → OpenShell → Sandbox specs** (REST:
 `/api/sandbox-profiles`). Upsert requires a known `policy_id`; you edit
 allow-list YAML under Policies, not on the spec.
 
-Four specs come seeded — `sandbox-cursor`, `sandbox-agy`, `sandbox-claude`,
-`sandbox-opencode` — one per split `quay.io/sandboard-app/sandbox-<engine>` image
+Five specs come seeded — `sandbox-cursor`, `sandbox-agy`, `sandbox-claude`,
+`sandbox-opencode`, `sandbox-hermes` — one per split `quay.io/sandboard-app/sandbox-<engine>` image
 ([Sandbox](sandbox.md#image-and-offline-gates)), each already wired to a
 matching minimal Cockpit policy with sandboard MCP attached. Editing a seeded row
 sticks; the seed only inserts what's missing.
@@ -132,7 +132,7 @@ sticks; the seed only inserts what's missing.
 ### Model
 
 An optional **model** on the spec names the model sandboard passes to agent CLIs
-that accept a `--model` flag on launch (`agy`, `cursor` / `agent`). Leave it
+that accept a `--model` flag on launch (`agy`, `cursor` / `agent`, `hermes`). Leave it
 unset to inherit the engine default — for `agy`, `gemini-3.6-flash-high`
 (`DEFAULT_SEAT_MODEL`); for `cursor`, the account default for your API key.
 
@@ -140,7 +140,7 @@ Resolution at claim/run:
 
 1. **`card.model`** on the Task (if set) — per-card override on claim
 2. **Sandbox spec `model`** — the winning profile for that card
-3. **Engine default** — compiled fallback when both are unset (`agy` only; `cursor` uses the account default)
+3. **Engine default** — compiled fallback when both are unset (`agy` only; `cursor` uses the account default; Hermes uses image config `openai/gpt-4o-mini`)
 
 The board and card UI show the resolved value (`resolved_model`). Cockpit uses
 the same spec → default chain (no card).
@@ -150,6 +150,13 @@ through OpenShell's `inference.local` router; which model they get is whatever
 you configured on the gateway with `openshell inference set` (see
 [Sandbox](sandbox.md#how-credentials-reach-the-agent)). sandboard does not automate
 that route — set it once per gateway as today.
+
+Hermes uses the endpoint-bearing `openrouter` provider type. Add an
+OpenShell provider instance with the `OPENROUTER_API_KEY` credential and attach
+that instance to any profile whose client uses OpenRouter. Hermes is one such
+client. When a card or spec model is set, sandboard passes `--model`; when unset,
+Hermes uses the image's
+`openai/gpt-4o-mini` default.
 
 ### Environment (`env`)
 
@@ -183,7 +190,7 @@ needs.
 ### Cockpit
 
 Cockpit uses the global default sandbox spec unless you set an explicit Cockpit
-profile under Sandbox specs. A fresh board seeds all four specs but picks none
+profile under Sandbox specs. A fresh board seeds all five specs but picks none
 of them as default — that choice is an onboarding step (Welcome flags it red
 until you set one). Pick a seeded spec (or one you made) and click **Set
 default**, or **Use for Cockpit** to give Cockpit its own engine. That spec's

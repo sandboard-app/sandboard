@@ -313,6 +313,7 @@ export function SandboxesPanelView({
                     <option value="agy">Antigravity CLI (agy)</option>
                     <option value="claude">Claude Code (Anthropic)</option>
                     <option value="opencode">OpenCode (opencode)</option>
+                    <option value="hermes">Hermes Agent (hermes)</option>
                   </select>
                 </label>
 
@@ -330,7 +331,7 @@ export function SandboxesPanelView({
                   />
                   <span className="dim sandbox-field-hint">
                     Passed to the agent CLI when set (`agy --model`, `agent
-                    --model`). Unset cards inherit this; card.model overrides on
+                    --model`, `hermes --model`). Unset cards inherit this; card.model overrides on
                     claim. Ignored for `claude` / `opencode` (gateway
                     `inference.local` route).
                   </span>

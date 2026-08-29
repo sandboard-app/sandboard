@@ -103,7 +103,7 @@ export interface SandboxProfile {
   policy_id: string;
   cpu?: string | null;
   memory?: string | null;
-  /** Agent CLI (`cursor` / `agy` / `claude` / `opencode`). Unset → Agent runtime default. */
+  /** Agent CLI (`cursor` / `agy` / `claude` / `opencode` / `hermes`). Unset → Agent runtime default. */
   engine?: string | null;
   /** Model passed to the agent CLI when set. Unset → card.model → engine default. */
   model?: string | null;

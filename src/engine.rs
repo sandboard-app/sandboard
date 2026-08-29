@@ -11,7 +11,7 @@ use std::fmt;
 pub enum ResumeFlag {
     /// `agy … --conversation "$SANDBOARD_CONVERSATION" …`
     Conversation,
-    /// Cursor Agent CLI: `agent … --resume "$SANDBOARD_CONVERSATION" …`
+    /// Cursor Agent / Hermes CLI: `… --resume "$SANDBOARD_CONVERSATION" …`
     Resume,
     /// OpenCode CLI: `opencode run … --session "$SANDBOARD_CONVERSATION" …`
     Session,
@@ -42,6 +42,8 @@ enum PromptStyle {
     FlagP,
     /// Trailing positional `"$VAR"` (Cursor Agent CLI).
     Positional,
+    /// Hermes' non-interactive `chat --query-file` form.
+    QueryFile,
 }
 
 /// One registered engine.
@@ -125,6 +127,23 @@ pub const ENGINES: &[Engine] = &[
         prompt: PromptStyle::Positional,
         resume: Some(ResumeFlag::Session),
         conversation_id_pointers: OPENCODE_SESSION_KEYS,
+        pre_start_auth: PreStartAuth::None,
+    },
+    Engine {
+        id: "hermes",
+        // Hermes `chat --query-file` path keeps tool progress observable to the
+        // supervisor. The OpenRouter provider is supplied by the attached
+        // OpenShell provider; `--yolo` and `--accept-hooks` are required because
+        // a card run has no human available to answer approval prompts.
+        prefix: "hermes --yolo --accept-hooks --provider openrouter",
+        post_model: "chat",
+        trailing: "",
+        prompt: PromptStyle::QueryFile,
+        resume: Some(ResumeFlag::Resume),
+        // Hermes prints `session_id:` on stderr rather than embedding its id in
+        // the JSONL stream; supervisor::parse_conversation_id handles that
+        // textual footer alongside the JSON pointers above.
+        conversation_id_pointers: &[],
         pre_start_auth: PreStartAuth::None,
     },
 ];
@@ -231,6 +250,28 @@ pub fn anthropic_inference_exports(engine_id: &str) -> &'static str {
     }
 }
 
+/// Shell exports for Hermes' OpenRouter provider.
+pub fn hermes_inference_exports(engine_id: &str) -> &'static str {
+    match engine_id.trim() {
+        // The built-in Hermes OpenRouter provider owns its endpoint. The API key
+        // itself is supplied by the attached OpenShell provider as a placeholder.
+        "hermes" => "",
+        _ => "",
+    }
+}
+
+/// Create-time env for Hermes' OpenRouter provider.
+pub fn hermes_inference_env(engine_id: &str) -> Vec<(String, String)> {
+    if engine_id.trim() != "hermes" {
+        return Vec::new();
+    }
+    vec![
+        ("HERMES_HOME".into(), "/sandbox/.hermes".into()),
+        ("PYTHONUNBUFFERED".into(), "1".into()),
+        ("PYTHONDONTWRITEBYTECODE".into(), "1".into()),
+    ]
+}
+
 /// Engine default when card and sandbox spec omit `model`.
 pub fn default_model_for_engine(engine_id: &str) -> Option<&'static str> {
     match engine_id.trim() {
@@ -241,11 +282,12 @@ pub fn default_model_for_engine(engine_id: &str) -> Option<&'static str> {
 
 /// Whether this engine's CLI accepts a `--model` flag on launch argv.
 ///
-/// Verified via `agent --help` (cursor), `agy --help`, and unit argv tests.
+/// Verified via `agent --help` (cursor), `agy --help`, and Hermes CLI help.
 /// `claude` and `opencode` reach models through OpenShell `inference.local`
-/// instead — see [`anthropic_inference_env`].
+/// instead — see [`anthropic_inference_env`]. Hermes accepts `--model` and
+/// defaults to the image's OpenRouter model when the profile leaves it unset.
 pub fn engine_accepts_cli_model(engine_id: &str) -> bool {
-    matches!(engine_id.trim(), "agy" | "cursor")
+    matches!(engine_id.trim(), "agy" | "cursor" | "hermes")
 }
 
 fn shell_single_quote(s: &str) -> String {
@@ -299,12 +341,19 @@ pub fn command_line(
         PromptStyle::Positional => {
             parts.push(prompt.shell_ref().to_string());
         }
+        PromptStyle::QueryFile => {
+            parts.push("--query-file".to_string());
+            parts.push(HERMES_QUERY_FILE.to_string());
+        }
     }
     if !engine.trailing.is_empty() {
         parts.push(engine.trailing.to_string());
     }
     Ok(parts.join(" "))
 }
+
+/// Prompt file materialized by the start/turn shell wrapper for Hermes.
+pub const HERMES_QUERY_FILE: &str = "/tmp/sandboard-hermes-query";
 
 /// Union of conversation/session JSON pointers across registered engines.
 ///
@@ -329,7 +378,7 @@ mod tests {
 
     #[test]
     fn known_engines_are_registered() {
-        for id in ["cursor", "agy", "claude", "opencode"] {
+        for id in ["cursor", "agy", "claude", "opencode", "hermes"] {
             assert_eq!(lookup(id).unwrap().id, id);
         }
     }
@@ -344,8 +393,38 @@ mod tests {
         assert!(msg.contains("agy"), "{msg}");
         assert!(msg.contains("claude"), "{msg}");
         assert!(msg.contains("opencode"), "{msg}");
+        assert!(msg.contains("hermes"), "{msg}");
         assert!(command_line("nope", PromptEnv::Briefing, None, None).is_err());
         assert!(!supports_resume("nope"));
+    }
+
+    #[test]
+    fn hermes_argv_uses_openrouter_chat_and_resumes_sessions() {
+        let fresh = command_line("hermes", PromptEnv::Briefing, None, None).unwrap();
+        assert_eq!(
+            fresh,
+            "hermes --yolo --accept-hooks --provider openrouter chat --query-file /tmp/sandboard-hermes-query"
+        );
+
+        let custom = command_line(
+            "hermes",
+            PromptEnv::Briefing,
+            None,
+            Some("gpt-5.6-luna"),
+        )
+        .unwrap();
+        assert!(custom.contains("--model 'gpt-5.6-luna'"), "{custom}");
+        assert!(custom.contains("--provider openrouter"), "{custom}");
+        assert!(custom.find("--model").unwrap() < custom.find(" chat ").unwrap());
+
+        let resume = command_line("hermes", PromptEnv::Prompt, Some("session-1"), None).unwrap();
+        assert!(
+            resume.contains("--resume \"$SANDBOARD_CONVERSATION\""),
+            "{resume}"
+        );
+        assert!(resume.ends_with("--query-file /tmp/sandboard-hermes-query"), "{resume}");
+        assert!(supports_resume("hermes"));
+        assert_eq!(pre_start_auth("hermes").unwrap(), PreStartAuth::None);
     }
 
     #[test]
@@ -378,6 +457,19 @@ mod tests {
         assert!(anthropic_inference_exports("opencode").contains("/v1"));
         assert!(!anthropic_inference_exports("claude").contains("/v1"));
         assert!(anthropic_inference_exports("cursor").is_empty());
+    }
+
+    #[test]
+    fn hermes_uses_openrouter_provider_env() {
+        assert_eq!(hermes_inference_exports("hermes"), "");
+        assert_eq!(
+            hermes_inference_env("hermes"),
+            vec![
+                ("HERMES_HOME".into(), "/sandbox/.hermes".into()),
+                ("PYTHONUNBUFFERED".into(), "1".into()),
+                ("PYTHONDONTWRITEBYTECODE".into(), "1".into()),
+            ]
+        );
     }
 
     #[test]

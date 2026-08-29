@@ -99,12 +99,17 @@ disabled` — no `--force`, so tool calls still prompt for approval. Headless
 Cockpit chat / card runs use the same `--approve-mcps` (with `--force` and
 `-p`); without it, Cursor 2026.08+ leaves `mcp.json` servers unloaded
 (`needs approval`) and tools look missing even when the socat relay is up.
-OpenCode, Claude, and agy launch their own TUIs.
+OpenCode, Claude, and agy launch their own TUIs. Hermes launches its classic
+CLI (`hermes --cli`) in the terminal; the modern TUI is intentionally not part
+of the sandbox image. Hermes card/chat turns use headless
+`hermes chat --query-file …` instead.
 
 ## Credentials inside the sandbox
 
-Model auth comes from OpenShell providers and `inference.local`, never from host
-secrets copied into the sandbox.
+Model auth comes from OpenShell providers. Claude/OpenCode use `inference.local`;
+Hermes uses the attached `sandboard-openrouter` provider, which injects
+`OPENROUTER_API_KEY` only into the sandbox process. No host secret is copied into
+the image.
 
 MCP auth from inside the sandbox works differently from the host. Host Cursor
 uses browser OAuth against `/mcp`, and that dance does not work cleanly from
@@ -117,6 +122,7 @@ login, no Bearer, no OAuth dance to skip.
 | `/sandbox/.sandboard/mcp/claude_mcp.json` | same shape; Claude loads it via `--mcp-config` |
 | `/sandbox/.gemini/config/mcp_config.json` | same, for Antigravity |
 | `/sandbox/.config/opencode/opencode.jsonc` | OpenCode `mcp.sandboard`, `type: local` |
+| `/sandbox/.sandboard/mcp/hermes_mcp.yaml` | Board-rendered `mcp_servers`; the Hermes wrapper merges it into `HERMES_HOME/config.yaml` |
 
 Injection happens when the sandbox becomes Ready, on
 `POST /api/cockpit-session/mcp-cred`, and on terminal attach. Do not run

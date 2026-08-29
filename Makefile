@@ -119,7 +119,7 @@ docs-serve:
 # CONTAINER_ENGINE=docker when needed.
 CONTAINER_ENGINE ?= podman
 REGISTRY ?= quay.io/sandboard-app
-ENGINES := cursor agy claude opencode
+ENGINES := cursor agy claude opencode hermes
 
 sandbox:
 	@for e in $(ENGINES); do \

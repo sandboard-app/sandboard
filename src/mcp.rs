@@ -115,6 +115,7 @@ pub struct CreateProjectArg {
     pub clone_repo: String,
     /// Projects are roots. Nesting a Project under another is refused.
     #[serde(default)]
+    #[schemars(skip)]
     pub parent: Option<ItemId>,
     #[serde(default = "default_above_line")]
     pub above_line: bool,
@@ -1651,6 +1652,15 @@ mod tests {
             assert!(obj.contains_key("items"), "record must contain 'items' key");
             assert!(obj["items"].is_array(), "'items' value must be a JSON array");
         }
+    }
+
+    #[test]
+    fn create_project_schema_allows_omitting_root_parent() {
+        let schema = schemars::schema_for!(CreateProjectArg);
+        let value = serde_json::to_value(schema).expect("schema serializes");
+        let required = value["required"].as_array().expect("required fields");
+        assert!(!required.iter().any(|field| field == "parent"));
+        assert!(!value["properties"].as_object().unwrap().contains_key("parent"));
     }
 
     #[test]

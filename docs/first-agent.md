@@ -98,8 +98,8 @@ endpoint and sealed PEMs — same split as [Configuration](configuration.md).
 per Sandbox spec.
 
 For **`claude`** and **`opencode`** sandboxes, point OpenShell's local router at
-your model (this is separate from the optional **Model** field on Sandbox
-specs, which only applies to CLIs that accept `--model` — `agy` and `cursor`):
+your model. Hermes uses its own endpoint-bearing OpenShell provider so it can
+use OpenRouter without changing the shared inference route:
 
 ```bash
 openshell provider create --name vertex --type google-vertex-ai --from-gcloud-adc \
@@ -108,13 +108,14 @@ openshell inference set --provider vertex --model claude-sonnet-4-6@default
 ```
 
 Those agents then reach models at `https://inference.local` and the gateway
-swaps in the real credential on the way out. Details, including the one
-environment variable that will silently break this:
+swaps in the real credential on the way out. For Hermes, create an
+`openrouter` provider with `OPENROUTER_API_KEY` and attach it to the
+`sandbox-hermes` profile. Details:
 [Sandbox](sandbox.md#how-credentials-reach-the-agent).
 
-For **`agy`** and **`cursor`**, model selection is on the Sandbox spec (or per
-card at claim); sandboard passes the resolved value as `agy --model …` or
-`agent --model …`. See
+For **`agy`**, **`cursor`**, and **`hermes`**, model selection is on the Sandbox
+spec (or per card at claim); sandboard passes the resolved value as `agy
+--model …`, `agent --model …`, or `hermes --model …`. See
 [Configuration](configuration.md#model) and [Sandbox](sandbox.md#model-selection).
 
 For GitHub, add or edit the shipped **`github-app`** provider under
@@ -134,16 +135,16 @@ resources, engine, and providers live on the spec; YAML lives on the Policy.
 [Configuration](configuration.md#policies) covers the split; a running sandbox
 keeps the policy it was created with.
 
-A fresh board already has four seeded specs — `sandbox-cursor`,
-`sandbox-agy`, `sandbox-claude`, `sandbox-opencode` — each pointed at
+A fresh board already has five seeded specs — `sandbox-cursor`,
+`sandbox-agy`, `sandbox-claude`, `sandbox-opencode`, `sandbox-hermes` — each pointed at
 `quay.io/sandboard-app/sandbox-<engine>:latest` and a matching minimal Cockpit
 policy. None of them is the default yet — pick one (Welcome flags this until
 you do). Build and push those images yourself (or point the seeded specs at
 wherever you host them):
 
 ```bash
-make sandbox        # builds all four quay.io/sandboard-app/sandbox-<engine>:latest
-make sandbox-push   # builds, then pushes all four
+make sandbox        # builds all five quay.io/sandboard-app/sandbox-<engine>:latest
+make sandbox-push   # builds, then pushes all five
 # Docker: CONTAINER_ENGINE=docker make sandbox
 # Different registry: REGISTRY=ghcr.io/you make sandbox
 ```
@@ -156,10 +157,10 @@ Cockpit policies allow that egress (`src/seed_policies.rs`).
 
 Then set the board's **default** sandbox spec in
 **Settings → OpenShell → Sandbox specs** (Welcome/Help deep-links here) —
-either one of the four seeded rows or one you made. Nothing is default until
+either one of the five seeded rows or one you made. Nothing is default until
 you choose; the Welcome "Sandbox spec" readiness check stays red until then.
-Optionally set **Model** on the spec when using `agy` (or override per card at
-claim); `claude`/`opencode` model routing stays on the gateway via
+Optionally set **Model** on the spec when using `agy`, `cursor`, or `hermes` (or
+override per card at claim); `claude`/`opencode` model routing stays on the gateway via
 `openshell inference set` as above. Specs live on the board;
 [Configuration](configuration.md#sandbox-specs) and [Sandbox](sandbox.md) cover
 resolution.

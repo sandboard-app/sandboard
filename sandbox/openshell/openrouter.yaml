@@ -1,0 +1,35 @@
+# OpenShell provider type for clients using the OpenRouter API.
+# The provider injects OPENROUTER_API_KEY into an attached sandbox; each client
+# chooses its own OpenRouter-compatible endpoint and request format.
+id: openrouter
+display_name: OpenRouter
+description: OpenRouter API key for direct client access
+category: inference
+credentials:
+  - name: api_key
+    description: OpenRouter API key for direct client access
+    env_vars:
+      - OPENROUTER_API_KEY
+    required: true
+    auth_style: bearer
+    header_name: authorization
+    query_param: ""
+discovery:
+  credentials:
+    - api_key
+endpoints:
+  - host: openrouter.ai
+    port: 443
+    protocol: rest
+    access: read-write
+    enforcement: enforce
+binaries:
+  - /usr/local/bin/hermes
+  - /opt/hermes/.venv/bin/hermes
+  - /opt/hermes/.venv/bin/python
+  - /usr/bin/python3.12
+  - /bin/sh
+  - /usr/bin/sh
+  - /bin/bash
+  - /usr/bin/bash
+inference_capable: false

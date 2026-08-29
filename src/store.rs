@@ -638,7 +638,7 @@ impl Board {
                 Err(e) => tracing::warn!("ignoring unreadable {path:?}: {e}"),
             }
         }
-        // Operator-created sandbox specs are left alone. The four
+        // Operator-created sandbox specs are left alone. The five
         // sandbox-<engine> rows below are the exception: shipped, one per
         // split image, so Cockpit works before an operator writes anything.
         if board.ensure_minimal_policy() {
@@ -728,7 +728,7 @@ impl Board {
             board.dirty.store(true, Ordering::Relaxed);
             board.flush();
         }
-        // Operator-created sandbox specs are left alone. The four
+        // Operator-created sandbox specs are left alone. The five
         // sandbox-<engine> rows below are the exception: shipped, one per
         // split image, so Cockpit works before an operator writes anything.
         if board.ensure_minimal_policy() {
@@ -3361,18 +3361,19 @@ impl Board {
         true
     }
 
-    /// Seed the four per-engine Cockpit policy rows (`cockpit-cursor`,
-    /// `cockpit-agy`, `cockpit-claude`, `cockpit-opencode`) matching the
+    /// Seed the five per-engine Cockpit policy rows (`cockpit-cursor`,
+    /// `cockpit-agy`, `cockpit-claude`, `cockpit-opencode`, `cockpit-hermes`) matching the
     /// split `sandbox-<engine>` images in `sandbox/Containerfile`. Insert
     /// only — an operator who has already edited one of these ids keeps
     /// their edit; this never overwrites.
     fn ensure_shipped_cockpit_policies(&self) -> bool {
         use crate::seed_policies::*;
-        let rows: [(&str, &str, &str); 4] = [
+        let rows: [(&str, &str, &str); 5] = [
             (COCKPIT_CURSOR_POLICY_ID, COCKPIT_CURSOR_POLICY_NAME, COCKPIT_CURSOR_POLICY),
             (COCKPIT_AGY_POLICY_ID, COCKPIT_AGY_POLICY_NAME, COCKPIT_AGY_POLICY),
             (COCKPIT_CLAUDE_POLICY_ID, COCKPIT_CLAUDE_POLICY_NAME, COCKPIT_CLAUDE_POLICY),
             (COCKPIT_OPENCODE_POLICY_ID, COCKPIT_OPENCODE_POLICY_NAME, COCKPIT_OPENCODE_POLICY),
+            (COCKPIT_HERMES_POLICY_ID, COCKPIT_HERMES_POLICY_NAME, COCKPIT_HERMES_POLICY),
         ];
         let mut s = self.state.write();
         let mut changed = false;
@@ -3398,7 +3399,7 @@ impl Board {
     }
 
     /// Seed one `SandboxProfile` per split `sandbox-<engine>` image (cursor,
-    /// agy, claude, opencode) so Cockpit and card workers have something to
+    /// agy, claude, opencode, hermes) so Cockpit and card workers have something to
     /// pick from without an operator having to hand-write a profile + policy
     /// first. Insert only, by stable id — an operator-edited row (even one
     /// that started `shipped`) is left alone. Deliberately does **not** pick
@@ -3409,11 +3410,12 @@ impl Board {
         self.ensure_shipped_mcp_servers();
         self.ensure_shipped_cockpit_policies();
         use crate::seed_policies::*;
-        let rows: [(&str, &str, &str, &str, &str); 4] = [
+        let rows: [(&str, &str, &str, &str, &str); 5] = [
             ("sandbox-cursor", "Sandbox (cursor)", "quay.io/sandboard-app/sandbox-cursor:latest", COCKPIT_CURSOR_POLICY_ID, "cursor"),
             ("sandbox-agy", "Sandbox (agy)", "quay.io/sandboard-app/sandbox-agy:latest", COCKPIT_AGY_POLICY_ID, "agy"),
             ("sandbox-claude", "Sandbox (claude)", "quay.io/sandboard-app/sandbox-claude:latest", COCKPIT_CLAUDE_POLICY_ID, "claude"),
             ("sandbox-opencode", "Sandbox (opencode)", "quay.io/sandboard-app/sandbox-opencode:latest", COCKPIT_OPENCODE_POLICY_ID, "opencode"),
+            ("sandbox-hermes", "Sandbox (hermes)", "quay.io/sandboard-app/sandbox-hermes:latest", COCKPIT_HERMES_POLICY_ID, "hermes"),
         ];
         let mut s = self.state.write();
         let mut changed = false;
@@ -12834,9 +12836,9 @@ mod tests {
 
         let restored = Board::load_or_new(Schema::default(), path.clone());
         assert_eq!(restored.default_sandbox_profile_id().as_deref(), Some("ci"));
-        // 2 operator profiles (default, ci) + 4 shipped sandbox-<engine> rows
+        // 2 operator profiles (default, ci) + 5 shipped sandbox-<engine> rows
         // seeded on boot (ensure_shipped_sandbox_profiles).
-        assert_eq!(restored.list_sandbox_profiles().len(), 6);
+        assert_eq!(restored.list_sandbox_profiles().len(), 7);
         let p = restored.get(project.id).expect("project");
         assert_eq!(p.sandbox_profile_id.as_deref(), Some("default"));
         assert_eq!(

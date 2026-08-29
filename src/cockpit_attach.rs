@@ -83,8 +83,9 @@ fn ready_environment(board: &SharedBoard) -> Result<String, AttachError> {
 
 /// Whether a Board `conversation_id` can be resumed on this engine.
 ///
-/// Cursor ids are UUID-shaped; OpenCode uses `ses_*`. Mixing them after a
-/// profile engine switch would hang or error — start fresh instead.
+/// Cursor ids are UUID-shaped; OpenCode uses `ses_*`; Hermes ids are opaque
+/// timestamped session handles. Mixing them after a profile engine switch would
+/// hang or error — start fresh instead.
 pub(crate) fn conversation_usable(engine: &str, id: &str) -> bool {
     let id = id.trim();
     if id.is_empty() {
@@ -94,6 +95,7 @@ pub(crate) fn conversation_usable(engine: &str, id: &str) -> bool {
         "cursor" => !id.starts_with("ses_"),
         "opencode" => id.starts_with("ses_"),
         "agy" => true,
+        "hermes" => true,
         "claude" => false,
         _ => false,
     }
@@ -118,6 +120,7 @@ pub(crate) fn attach_agent_command(
         .filter(|s| conversation_usable(engine, s));
     let prompt = initial_prompt.map(str::trim).filter(|s| !s.is_empty());
     let inference = crate::engine::anthropic_inference_exports(engine);
+    let hermes_inference = crate::engine::hermes_inference_exports(engine);
     let agy_cloud = if engine == "agy" {
         // Prefer a seat-local agy when the image bake lags (binary integrity
         // pins /usr/local/bin/agy to the image hash).
@@ -161,6 +164,18 @@ pub(crate) fn attach_agent_command(
             }
             cmd
         }
+        "hermes" => {
+            let mut cmd = String::from("hermes --cli --provider openrouter");
+            if let Some(argv) = crate::engine::cli_model_argv("hermes", model) {
+                cmd.push(' ');
+                cmd.push_str(&argv);
+            }
+            if let Some(id) = cid {
+                cmd.push_str(" --resume ");
+                cmd.push_str(&shell_quote(id));
+            }
+            cmd
+        }
         // cursor (default): human-in-the-loop Cursor Agent CLI.
         _ => {
             let mut cmd = String::from("agent --trust --approve-mcps --sandbox disabled");
@@ -181,7 +196,7 @@ pub(crate) fn attach_agent_command(
     };
 
     let script = format!(
-        "{extra_exports}{agy_cloud}{inference}cd {WORKDIR} 2>/dev/null || cd /sandbox; exec {agent}"
+        "{extra_exports}{agy_cloud}{inference}{hermes_inference}cd {WORKDIR} 2>/dev/null || cd /sandbox; exec {agent}"
     );
     vec!["bash".into(), "-lc".into(), script]
 }
@@ -381,7 +396,7 @@ where
     let _ = os
         .exec(
             &environment,
-            "pkill -f '/usr/local/bin/agent' 2>/dev/null || pkill -f 'cursor-agent' 2>/dev/null || pkill -f '/usr/local/bin/opencode' 2>/dev/null || pkill -f '/opt/opencode/bin/opencode' 2>/dev/null || pkill -f 'claude --bare' 2>/dev/null || pkill -f '/usr/local/bin/agy' 2>/dev/null || true",
+            "pkill -f '/usr/local/bin/agent' 2>/dev/null || pkill -f 'cursor-agent' 2>/dev/null || pkill -f '/usr/local/bin/opencode' 2>/dev/null || pkill -f '/opt/opencode/bin/opencode' 2>/dev/null || pkill -f 'claude --bare' 2>/dev/null || pkill -f '/usr/local/bin/agy' 2>/dev/null || pkill -f '/usr/local/bin/hermes' 2>/dev/null || pkill -f '/opt/hermes/.venv/bin/hermes' 2>/dev/null || true",
             Duration::from_secs(10),
         )
         .await;
@@ -642,6 +657,32 @@ mod tests {
             "{script}"
         );
         assert!(!script.contains("agent --trust"), "{script}");
+    }
+
+    #[test]
+    fn attach_agent_command_hermes_uses_classic_cli_and_openrouter() {
+        let cmd = attach_agent_command("hermes", None, None, "", None);
+        let script = &cmd[2];
+        assert!(script.contains("exec hermes --cli --provider openrouter"), "{script}");
+        assert!(!script.contains("--yolo"), "interactive attach should not be yolo: {script}");
+        assert!(!script.contains("CUSTOM_BASE_URL"), "{script}");
+        assert!(!script.contains("OPENAI_BASE_URL"), "{script}");
+    }
+
+    #[test]
+    fn hermes_attach_accepts_hermes_session_ids() {
+        assert!(conversation_usable("hermes", "20260828_120000_a1b2c3"));
+        assert!(!conversation_usable("hermes", ""));
+        let cmd = attach_agent_command(
+            "hermes",
+            Some("20260828_120000_a1b2c3"),
+            None,
+            "",
+            Some("gpt-5.6-luna"),
+        );
+        let script = &cmd[2];
+        assert!(script.contains("--resume '20260828_120000_a1b2c3'"), "{script}");
+        assert!(script.contains("--model 'gpt-5.6-luna'"), "{script}");
     }
 
     #[test]

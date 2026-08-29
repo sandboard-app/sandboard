@@ -923,6 +923,7 @@ export function AgentRuntimePanelView({
             <option value="agy">agy</option>
             <option value="claude">claude</option>
             <option value="opencode">opencode</option>
+            <option value="hermes">hermes</option>
           </select>
         </label>
 

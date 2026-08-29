@@ -25,12 +25,16 @@ endpoints:
     enforcement: enforce
   - host: cursor.blob.core.windows.net
     port: 443
+    allow_uninspected_credentials: true
   - host: repo.cursor.sh
     port: 443
+    allow_uninspected_credentials: true
   - host: download.cursor.sh
     port: 443
+    allow_uninspected_credentials: true
   - host: cursor.download.prss.microsoft.com
     port: 443
+    allow_uninspected_credentials: true
 binaries:
   - /usr/local/bin/agent
   - /usr/bin/agent

@@ -22,7 +22,7 @@ them at create time.
 
 The **cockpit** sandbox uses the same catalog. `src/seed_policies.rs` seeds one
 minimal Cockpit policy per engine (`cockpit-cursor`, `cockpit-agy`,
-`cockpit-claude`, `cockpit-opencode`) — inference/API egress for that engine
+`cockpit-claude`, `cockpit-opencode`, `cockpit-hermes`) — inference/API egress for that engine
 plus GitHub App `GH_TOKEN` and crates.io/npm registry egress (a card's own
 `cargo build`/`npm ci` fetch live; there is no baked-in dependency cache) —
 matched to a seeded Sandbox spec (`sandbox-cursor`, …) that already selects
@@ -38,7 +38,7 @@ Builds sandboard's own minimal base — Red Hat UBI9, not the OpenShell communit
 image — plus a Rust toolchain. Multi-stage: a `shared` stage installs OS
 packages (`git`, `nodejs`/`npm`, `gh`, `gcc`/`make`, `iproute`, `nftables`,
 `socat`) and `cargo`/`clippy`, then one leaf stage per agent engine (`cursor`,
-`agy`, `claude`, `opencode`) installs only that engine's CLI on top, so each
+`agy`, `claude`, `opencode`, `hermes`) installs only that engine's CLI on top, so each
 resulting image only carries the binary it will actually run.
 
 OpenShift restricted SCC assigns a random UID in group 0 and ignores image
@@ -58,19 +58,22 @@ Build from the **repo root**, not this directory:
 
 ```bash
 podman build -f sandbox/Containerfile --target cursor -t quay.io/sandboard-app/sandbox-cursor:latest .
-# make sandbox builds all four; make sandbox-push also pushes them.
+# make sandbox builds all five; make sandbox-push also pushes them.
 ```
 
 Rebuild when you need a newer engine CLI, OS package, or Rust toolchain
 version. Matching `/opt` entries belong in the worker **board Policy** (and
 the embedded seed in `src/seed_policies.rs`): `/opt/cargo`,
 `/opt/cargo-target`, `/opt/npm-cache` need **read-write** (populated live, not
-pre-baked); `/opt/rust` (plus that engine's own `/opt/cursor-agent` or
-`/opt/opencode`) stays **read-only**. `/opt/cargo/bin/cargo` is rustup's proxy
+pre-baked); `/opt/rust` (plus that engine's own `/opt/cursor-agent`,
+`/opt/opencode`, or `/opt/hermes`) stays **read-only**. The Hermes leaf also
+bakes Python 3.12 and its virtualenv under `/opt/hermes`; `/sandbox/.hermes`
+is the writable runtime state. `/opt/cargo/bin/cargo` is rustup's proxy
 binary and re-execs the real `cargo` under `/opt/rust/toolchains/<version>/bin`
 at runtime — a process exec, not a symlink OpenShell's literal binary matching
 can follow, so the toolchain path needs its own policy entry too (verified
 live: omitting it gets a 403 on crates.io even with the proxy path allowed).
 
-Claude / OpenCode auth goes through OpenShell `inference.local` (see
-[`docs/sandbox.md`](../docs/sandbox.md)) — no in-sandbox metadata shim.
+Claude / OpenCode auth goes through OpenShell `inference.local`. Direct
+OpenRouter clients use an attached endpoint-bearing OpenRouter provider, which
+supplies `OPENROUTER_API_KEY` only to that sandbox; no key is baked into the image.
