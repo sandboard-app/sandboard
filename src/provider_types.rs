@@ -308,6 +308,21 @@ mod tests {
     }
 
     #[test]
+    fn openrouter_profile_allows_opencode_binary_paths() {
+        let profile: serde_yaml::Value = serde_yaml::from_str(OPENROUTER_YAML).unwrap();
+        let binaries = profile
+            .get("binaries")
+            .and_then(serde_yaml::Value::as_sequence)
+            .expect("OpenRouter profile binaries");
+        let paths: Vec<&str> = binaries
+            .iter()
+            .filter_map(serde_yaml::Value::as_str)
+            .collect();
+        assert!(paths.contains(&"/usr/local/bin/opencode"), "{paths:?}");
+        assert!(paths.contains(&"/opt/opencode/bin/opencode"), "{paths:?}");
+    }
+
+    #[test]
     fn ensure_seeds_missing_shipped_types() {
         let b = temp_board();
         assert!(b.openshell_provider_types().is_empty());

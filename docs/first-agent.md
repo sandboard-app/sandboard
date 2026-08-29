@@ -97,9 +97,11 @@ endpoint and sealed PEMs — same split as [Configuration](configuration.md).
 **Sync** applies it to the gateway. Which providers attach on create is chosen
 per Sandbox spec.
 
-For **`claude`** and **`opencode`** sandboxes, point OpenShell's local router at
-your model. Hermes uses its own endpoint-bearing OpenShell provider so it can
-use OpenRouter without changing the shared inference route:
+For **`claude`** sandboxes, point OpenShell's local router at your model. OpenCode
+can use the same route when its model is unset, or a direct provider such as
+OpenRouter when its Sandbox spec has a `provider/model` value. Hermes uses its
+own endpoint-bearing OpenShell provider so it can use OpenRouter without
+changing the shared inference route:
 
 ```bash
 openshell provider create --name vertex --type google-vertex-ai --from-gcloud-adc \
@@ -113,9 +115,10 @@ swaps in the real credential on the way out. For Hermes, create an
 `sandbox-hermes` profile. Details:
 [Sandbox](sandbox.md#how-credentials-reach-the-agent).
 
-For **`agy`**, **`cursor`**, and **`hermes`**, model selection is on the Sandbox
-spec (or per card at claim); sandboard passes the resolved value as `agy
---model …`, `agent --model …`, or `hermes --model …`. See
+For **`agy`**, **`cursor`**, **`opencode`**, and **`hermes`**, model selection is on
+the Sandbox spec (or per card at claim); sandboard passes the resolved value as
+`agy --model …`, `agent --model …`, `opencode --model provider/model`, or
+`hermes --model …`. See
 [Configuration](configuration.md#model) and [Sandbox](sandbox.md#model-selection).
 
 For GitHub, add or edit the shipped **`github-app`** provider under
@@ -159,9 +162,9 @@ Then set the board's **default** sandbox spec in
 **Settings → OpenShell → Sandbox specs** (Welcome/Help deep-links here) —
 either one of the five seeded rows or one you made. Nothing is default until
 you choose; the Welcome "Sandbox spec" readiness check stays red until then.
-Optionally set **Model** on the spec when using `agy`, `cursor`, or `hermes` (or
-override per card at claim); `claude`/`opencode` model routing stays on the gateway via
-`openshell inference set` as above. Specs live on the board;
+Optionally set **Model** on the spec when using `agy`, `cursor`, `opencode`, or
+`hermes` (or override per card at claim); `claude` model routing stays on the
+gateway via `openshell inference set` as above. Specs live on the board;
 [Configuration](configuration.md#sandbox-specs) and [Sandbox](sandbox.md) cover
 resolution.
 

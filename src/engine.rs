@@ -282,12 +282,12 @@ pub fn default_model_for_engine(engine_id: &str) -> Option<&'static str> {
 
 /// Whether this engine's CLI accepts a `--model` flag on launch argv.
 ///
-/// Verified via `agent --help` (cursor), `agy --help`, and Hermes CLI help.
-/// `claude` and `opencode` reach models through OpenShell `inference.local`
-/// instead — see [`anthropic_inference_env`]. Hermes accepts `--model` and
-/// defaults to the image's OpenRouter model when the profile leaves it unset.
+/// Verified via each engine's help output. Claude reaches models through
+/// OpenShell `inference.local` instead — see [`anthropic_inference_env`].
+/// Hermes and OpenCode accept provider/model values from the resolved sandbox
+/// profile.
 pub fn engine_accepts_cli_model(engine_id: &str) -> bool {
-    matches!(engine_id.trim(), "agy" | "cursor" | "hermes")
+    matches!(engine_id.trim(), "agy" | "cursor" | "opencode" | "hermes")
 }
 
 fn shell_single_quote(s: &str) -> String {
@@ -428,6 +428,21 @@ mod tests {
     }
 
     #[test]
+    fn opencode_argv_includes_resolved_model() {
+        let cmd = command_line(
+            "opencode",
+            PromptEnv::Briefing,
+            None,
+            Some("openrouter/deepseek/deepseek-v4-flash-0731"),
+        )
+        .unwrap();
+        assert!(
+            cmd.contains("opencode run --format json --auto --model 'openrouter/deepseek/deepseek-v4-flash-0731'"),
+            "{cmd}"
+        );
+    }
+
+    #[test]
     fn claude_argv_fresh_no_resume() {
         let cmd = command_line("claude", PromptEnv::Briefing, None, None).unwrap();
         assert_eq!(
@@ -503,7 +518,7 @@ mod tests {
         assert!(engine_accepts_cli_model("agy"));
         assert!(engine_accepts_cli_model("cursor"));
         assert!(!engine_accepts_cli_model("claude"));
-        assert!(!engine_accepts_cli_model("opencode"));
+        assert!(engine_accepts_cli_model("opencode"));
     }
 
     #[test]
@@ -562,7 +577,10 @@ mod tests {
 
         let with_model =
             command_line("opencode", PromptEnv::Briefing, None, Some("ignored")).unwrap();
-        assert_eq!(with_model, fresh);
+        assert_eq!(
+            with_model,
+            "opencode run --format json --auto --model 'ignored' \"$SANDBOARD_BRIEFING\""
+        );
 
         let resume = command_line("opencode", PromptEnv::Prompt, Some("ses_abc"), None).unwrap();
         assert!(

@@ -132,7 +132,9 @@ sticks; the seed only inserts what's missing.
 ### Model
 
 An optional **model** on the spec names the model sandboard passes to agent CLIs
-that accept a `--model` flag on launch (`agy`, `cursor` / `agent`, `hermes`). Leave it
+that accept a `--model` flag on launch (`agy`, `cursor` / `agent`, `opencode`,
+`hermes`). OpenCode values use the `provider/model` format, such as
+`openrouter/deepseek/deepseek-v4-flash-0731`. Leave it
 unset to inherit the engine default — for `agy`, `gemini-3.6-flash-high`
 (`DEFAULT_SEAT_MODEL`); for `cursor`, the account default for your API key.
 
@@ -145,11 +147,12 @@ Resolution at claim/run:
 The board and card UI show the resolved value (`resolved_model`). Cockpit uses
 the same spec → default chain (no card).
 
-**`claude` and `opencode` do not read spec model.** Those engines reach models
-through OpenShell's `inference.local` router; which model they get is whatever
-you configured on the gateway with `openshell inference set` (see
-[Sandbox](sandbox.md#how-credentials-reach-the-agent)). sandboard does not automate
-that route — set it once per gateway as today.
+**`claude` does not read the spec model.** Claude reaches models through
+OpenShell's `inference.local` router; which model it gets is whatever you
+configured on the gateway with `openshell inference set` (see [Sandbox](sandbox.md#how-credentials-reach-the-agent)).
+OpenCode does read the resolved spec/card model and passes it as
+`--model provider/model`; when it is unset, OpenCode uses its own configured
+default.
 
 Hermes uses the endpoint-bearing `openrouter` provider type. Add an
 OpenShell provider instance with the `OPENROUTER_API_KEY` credential and attach

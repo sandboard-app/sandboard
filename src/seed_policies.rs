@@ -279,8 +279,9 @@ network_policies:
 
 /// Minimal Cockpit policy for `sandbox-opencode`: card-work toolchain +
 /// GitHub egress + OpenCode's own domain (model catalog / CLI update
-/// checks). Model traffic itself goes through OpenShell `inference.local`
-/// (see `engine::anthropic_inference_env`), same passthrough as claude.
+/// checks). An explicit `provider/model` is routed through its attached
+/// provider; the Anthropic-compatible fallback uses OpenShell `inference.local`
+/// (see `engine::anthropic_inference_env`).
 pub const COCKPIT_OPENCODE_POLICY: &str = r#"# Seeded Cockpit policy for the sandbox-opencode image. Adjust under
 # Settings → OpenShell → Policies; this is a starting point, not a floor.
 version: 1

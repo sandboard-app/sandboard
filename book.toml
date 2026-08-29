@@ -17,8 +17,9 @@ edit-url-template = "https://github.com/sandboard-app/sandboard/edit/main/docs/{
 # Org root site: https://sandboard-app.github.io/ (published to sandboard-app/sandboard-app.github.io)
 site-url = "/"
 no-section-label = true
+additional-css = ["landing.css"]
 # Dropped next to book.toml by `mdbook-mermaid install` (make docs / CI).
-additional-js = ["mermaid.min.js", "mermaid-init.js"]
+additional-js = ["mermaid.min.js", "mermaid-init.js", "landing.js"]
 
 [output.html.search]
 enable = true

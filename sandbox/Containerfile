@@ -218,7 +218,10 @@ RUN HOME=/root curl -fsSL https://opencode.ai/install | HOME=/root bash -s -- --
  && test -x /opt/opencode/bin/opencode \
  && ln -sfn /opt/opencode/bin/opencode /usr/local/bin/opencode \
  && chmod -R a+rX /opt/opencode \
- && /usr/local/bin/opencode --version
+ # The image ENV sets HOME=/sandbox, but this probe runs as root. Keep
+ # OpenCode's first-run config out of the sandbox user's writable home.
+ && HOME=/root /usr/local/bin/opencode --version \
+ && test ! -e /sandbox/.config/opencode
 
 USER sandbox
 WORKDIR /sandbox
