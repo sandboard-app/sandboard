@@ -1197,8 +1197,11 @@ pub const ANTIGRAVITY_PROVIDER: &str = "antigravity";
 /// Distinct from OpenShell builtin `cursor` (egress-only, no credentials).
 pub const CURSOR_AGENT_PROVIDER_TYPE: &str = "cursor-agent";
 
-/// Custom board provider type for Hermes Agent's OpenRouter API key.
-pub const OPENROUTER_HERMES_PROVIDER_TYPE: &str = "openrouter-hermes";
+/// Custom board provider type for the OpenRouter API key.
+///
+/// The credential is client-neutral: any sandbox tool that consumes
+/// `OPENROUTER_API_KEY` can attach this provider type.
+pub const OPENROUTER_PROVIDER_TYPE: &str = "openrouter";
 
 /// Custom board provider type for GitHub App–minted `GH_TOKEN`.
 /// Distinct from OpenShell builtin `github` (paste a PAT).

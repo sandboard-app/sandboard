@@ -107,7 +107,7 @@ of the sandbox image. Hermes card/chat turns use headless
 ## Credentials inside the sandbox
 
 Model auth comes from OpenShell providers. Claude/OpenCode use `inference.local`;
-Hermes uses the attached `openrouter-hermes` provider, which injects
+Hermes uses the attached `sandboard-openrouter` provider, which injects
 `OPENROUTER_API_KEY` only into the sandbox process. No host secret is copied into
 the image.
 

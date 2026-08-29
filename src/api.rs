@@ -2326,15 +2326,15 @@ mod tests {
     #[test]
     fn provider_view_is_not_synced_when_gateway_type_is_generic() {
         let provider = OpenShellProviderDesired {
-            name: "sandboard-openrouter-hermes".into(),
-            provider_type: "openrouter-hermes".into(),
+            name: "sandboard-openrouter".into(),
+            provider_type: "openrouter".into(),
             config: BTreeMap::new(),
             credentials_sealed: Some("sealed".into()),
             credential_keys: vec!["OPENROUTER_API_KEY".into()],
             refresh: None,
         };
         let gateway_types = BTreeMap::from([(
-            "sandboard-openrouter-hermes".into(),
+            "sandboard-openrouter".into(),
             "generic".into(),
         )]);
 

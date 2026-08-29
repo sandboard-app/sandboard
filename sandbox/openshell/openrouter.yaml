@@ -1,13 +1,13 @@
-# OpenShell provider type for Hermes Agent using OpenRouter.
-# The provider injects OPENROUTER_API_KEY into the Hermes sandbox; the image
-# wrapper selects the OpenRouter OpenAI-compatible endpoint.
-id: openrouter-hermes
-display_name: OpenRouter (Hermes)
-description: OpenRouter API key for Hermes Agent
-category: agent
+# OpenShell provider type for clients using the OpenRouter API.
+# The provider injects OPENROUTER_API_KEY into an attached sandbox; each client
+# chooses its own OpenRouter-compatible endpoint and request format.
+id: openrouter
+display_name: OpenRouter
+description: OpenRouter API key for direct client access
+category: inference
 credentials:
   - name: api_key
-    description: OpenRouter API key for Hermes Agent
+    description: OpenRouter API key for direct client access
     env_vars:
       - OPENROUTER_API_KEY
     required: true

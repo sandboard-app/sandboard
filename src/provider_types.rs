@@ -6,7 +6,7 @@
 
 use crate::model::{
     OpenShellProviderTypeDesired, ANTIGRAVITY_PROVIDER, CURSOR_AGENT_PROVIDER_TYPE,
-    GITHUB_APP_PROVIDER_TYPE, OPENROUTER_HERMES_PROVIDER_TYPE,
+    GITHUB_APP_PROVIDER_TYPE, OPENROUTER_PROVIDER_TYPE,
 };
 use crate::openshell::{OpenShell, ProviderTypeProfile};
 use crate::store::{Board, SharedBoard};
@@ -14,8 +14,7 @@ use crate::store::{Board, SharedBoard};
 const ANTIGRAVITY_YAML: &str = include_str!("../sandbox/openshell/antigravity.yaml");
 const CURSOR_AGENT_YAML: &str = include_str!("../sandbox/openshell/cursor-agent.yaml");
 const GITHUB_APP_YAML: &str = include_str!("../sandbox/openshell/github-app.yaml");
-const OPENROUTER_HERMES_YAML: &str =
-    include_str!("../sandbox/openshell/openrouter-hermes.yaml");
+const OPENROUTER_YAML: &str = include_str!("../sandbox/openshell/openrouter.yaml");
 
 /// Parsed metadata used by API upsert and catalog merge.
 #[derive(Debug, Clone)]
@@ -45,8 +44,8 @@ pub fn shipped_provider_types() -> Vec<OpenShellProviderTypeDesired> {
             form_config_keys: vec![],
         },
         OpenShellProviderTypeDesired {
-            id: OPENROUTER_HERMES_PROVIDER_TYPE.into(),
-            yaml: OPENROUTER_HERMES_YAML.trim().to_string(),
+            id: OPENROUTER_PROVIDER_TYPE.into(),
+            yaml: OPENROUTER_YAML.trim().to_string(),
             shipped: true,
             form_config_keys: vec![],
         },
@@ -297,11 +296,11 @@ mod tests {
         assert!(gh.credential_env_vars.iter().any(|e| e == "GH_TOKEN"));
 
         let openrouter = parse_provider_type_yaml(
-            OPENROUTER_HERMES_YAML,
-            Some(OPENROUTER_HERMES_PROVIDER_TYPE),
+            OPENROUTER_YAML,
+            Some(OPENROUTER_PROVIDER_TYPE),
         )
         .unwrap();
-        assert_eq!(openrouter.id, OPENROUTER_HERMES_PROVIDER_TYPE);
+        assert_eq!(openrouter.id, OPENROUTER_PROVIDER_TYPE);
         assert!(openrouter
             .credential_env_vars
             .iter()
@@ -318,7 +317,7 @@ mod tests {
         assert!(types.contains_key(ANTIGRAVITY_PROVIDER));
         assert!(types.contains_key(CURSOR_AGENT_PROVIDER_TYPE));
         assert!(types.contains_key(GITHUB_APP_PROVIDER_TYPE));
-        assert!(types.contains_key(OPENROUTER_HERMES_PROVIDER_TYPE));
+        assert!(types.contains_key(OPENROUTER_PROVIDER_TYPE));
         assert_eq!(ensure_shipped_on_board(&b), 0);
     }
 
@@ -387,8 +386,8 @@ mod tests {
         );
         assert!(
             got.iter()
-                .any(|s| s.contains(OPENROUTER_HERMES_PROVIDER_TYPE)),
-            "expected openrouter-hermes import, got {got:?}"
+                .any(|s| s.contains(OPENROUTER_PROVIDER_TYPE)),
+            "expected openrouter import, got {got:?}"
         );
     }
 
@@ -422,7 +421,7 @@ mod tests {
         b.upsert_openshell_provider(
             OpenShellProviderDesired {
                 name: "hermes".into(),
-                provider_type: OPENROUTER_HERMES_PROVIDER_TYPE.into(),
+                provider_type: OPENROUTER_PROVIDER_TYPE.into(),
                 config: Default::default(),
                 credentials_sealed: None,
                 credential_keys: vec!["OPENROUTER_API_KEY".into()],
@@ -440,7 +439,7 @@ mod tests {
         .unwrap();
         assert_eq!(
             seen.lock().unwrap().as_slice(),
-            &[OPENROUTER_HERMES_PROVIDER_TYPE.to_string()]
+            &[OPENROUTER_PROVIDER_TYPE.to_string()]
         );
     }
 

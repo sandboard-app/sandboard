@@ -74,6 +74,6 @@ at runtime — a process exec, not a symlink OpenShell's literal binary matching
 can follow, so the toolchain path needs its own policy entry too (verified
 live: omitting it gets a 403 on crates.io even with the proxy path allowed).
 
-Claude / OpenCode auth goes through OpenShell `inference.local`. Hermes uses
-the endpoint-bearing `openrouter-hermes` provider, which supplies
-`OPENROUTER_API_KEY` only to the Hermes sandbox; no key is baked into the image.
+Claude / OpenCode auth goes through OpenShell `inference.local`. Direct
+OpenRouter clients use an attached endpoint-bearing OpenRouter provider, which
+supplies `OPENROUTER_API_KEY` only to that sandbox; no key is baked into the image.

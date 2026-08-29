@@ -109,7 +109,7 @@ openshell inference set --provider vertex --model claude-sonnet-4-6@default
 
 Those agents then reach models at `https://inference.local` and the gateway
 swaps in the real credential on the way out. For Hermes, create an
-`openrouter-hermes` provider with `OPENROUTER_API_KEY` and attach it to the
+`openrouter` provider with `OPENROUTER_API_KEY` and attach it to the
 `sandbox-hermes` profile. Details:
 [Sandbox](sandbox.md#how-credentials-reach-the-agent).
 

@@ -151,10 +151,11 @@ you configured on the gateway with `openshell inference set` (see
 [Sandbox](sandbox.md#how-credentials-reach-the-agent)). sandboard does not automate
 that route — set it once per gateway as today.
 
-Hermes uses the endpoint-bearing `openrouter-hermes` provider type. Add an
+Hermes uses the endpoint-bearing `openrouter` provider type. Add an
 OpenShell provider instance with the `OPENROUTER_API_KEY` credential and attach
-that instance to the `sandbox-hermes` profile. When a card or spec model is
-set, sandboard passes `--model`; when unset, Hermes uses the image's
+that instance to any profile whose client uses OpenRouter. Hermes is one such
+client. When a card or spec model is set, sandboard passes `--model`; when unset,
+Hermes uses the image's
 `openai/gpt-4o-mini` default.
 
 ### Environment (`env`)

@@ -2570,7 +2570,7 @@ mod tests {
                     Output {
                         code: 0,
                         stdout: serde_json::to_string(&vec![GatewayProvider {
-                            name: "openrouter-hermes".into(),
+                            name: "sandboard-openrouter".into(),
                             provider_type: "generic".into(),
                             profile_workspace: "default".into(),
                             credential_keys: vec!["OPENROUTER_API_KEY".into()],
@@ -2591,8 +2591,8 @@ mod tests {
         );
 
         os.apply_provider(
-            "openrouter-hermes",
-            "openrouter-hermes",
+            "sandboard-openrouter",
+            "openrouter",
             BTreeMap::from([("OPENROUTER_API_KEY".into(), "secret".into())]),
             BTreeMap::new(),
             None,
@@ -2603,16 +2603,16 @@ mod tests {
         let calls = calls.lock().unwrap().clone();
         assert_eq!(calls.len(), 3);
         assert_eq!(calls[0], vec!["provider", "list", "-o", "json"]);
-        assert_eq!(calls[1], vec!["provider", "delete", "openrouter-hermes"]);
+        assert_eq!(calls[1], vec!["provider", "delete", "sandboard-openrouter"]);
         assert_eq!(
             calls[2],
             vec![
                 "provider",
                 "create",
                 "--name",
-                "openrouter-hermes",
+                "sandboard-openrouter",
                 "--type",
-                "openrouter-hermes"
+                "openrouter"
             ]
         );
     }
@@ -2630,8 +2630,8 @@ mod tests {
                     Output {
                         code: 0,
                         stdout: serde_json::to_string(&vec![GatewayProvider {
-                            name: "openrouter-hermes".into(),
-                            provider_type: "openrouter-hermes".into(),
+                            name: "sandboard-openrouter".into(),
+                            provider_type: "openrouter".into(),
                             profile_workspace: String::new(),
                             credential_keys: vec!["OPENROUTER_API_KEY".into()],
                             config_keys: vec![],
@@ -2651,8 +2651,8 @@ mod tests {
         );
 
         os.apply_provider(
-            "openrouter-hermes",
-            "openrouter-hermes",
+            "sandboard-openrouter",
+            "openrouter",
             BTreeMap::from([("OPENROUTER_API_KEY".into(), "secret".into())]),
             BTreeMap::new(),
             None,
@@ -2662,16 +2662,16 @@ mod tests {
 
         let calls = calls.lock().unwrap().clone();
         assert_eq!(calls.len(), 3);
-        assert_eq!(calls[1], vec!["provider", "delete", "openrouter-hermes"]);
+        assert_eq!(calls[1], vec!["provider", "delete", "sandboard-openrouter"]);
         assert_eq!(
             calls[2],
             vec![
                 "provider",
                 "create",
                 "--name",
-                "openrouter-hermes",
+                "sandboard-openrouter",
                 "--type",
-                "openrouter-hermes"
+                "openrouter"
             ]
         );
     }
@@ -2679,8 +2679,8 @@ mod tests {
     #[test]
     fn provider_payload_uses_workspace_profile_scope() {
         let provider = provider_payload(
-            "sandboard-openrouter-hermes",
-            "openrouter-hermes",
+            "sandboard-openrouter",
+            "openrouter",
             BTreeMap::new(),
             BTreeMap::new(),
         );

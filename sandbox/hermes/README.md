@@ -1,7 +1,7 @@
 # Hermes sandbox image
 
 This image is the sandboard Hermes seat. It installs Hermes from the pinned Git
-ref at build time and uses the endpoint-bearing OpenShell `openrouter-hermes`
+ref at build time and uses an attached endpoint-bearing OpenShell OpenRouter
 provider for model access. OpenShell injects `OPENROUTER_API_KEY` into the
 sandbox at runtime; the key is not baked into the image.
 

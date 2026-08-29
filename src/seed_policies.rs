@@ -354,8 +354,8 @@ network_policies:
 "#;
 
 /// Minimal Cockpit policy for `sandbox-hermes`: card-work toolchain + GitHub
-/// egress + OpenRouter. The attached `openrouter-hermes` provider injects
-/// `OPENROUTER_API_KEY` into Hermes; the key is never stored in the image.
+/// egress + OpenRouter. The attached `openrouter` provider injects
+/// `OPENROUTER_API_KEY` into the client; the key is never stored in the image.
 pub const COCKPIT_HERMES_POLICY: &str = r#"# Seeded Cockpit policy for the sandbox-hermes image. Adjust under
 # Settings → OpenShell → Policies; this is a starting point, not a floor.
 version: 1
