@@ -136,6 +136,10 @@ pub(crate) fn attach_agent_command(
     let agent = match engine {
         "opencode" => {
             let mut cmd = String::from("opencode");
+            if let Some(argv) = crate::engine::cli_model_argv("opencode", model) {
+                cmd.push(' ');
+                cmd.push_str(&argv);
+            }
             if let Some(id) = cid {
                 // Interactive TUI: continue a prior session when we have one.
                 cmd.push_str(" --session ");
@@ -657,6 +661,22 @@ mod tests {
             "{script}"
         );
         assert!(!script.contains("agent --trust"), "{script}");
+    }
+
+    #[test]
+    fn attach_agent_command_opencode_injects_resolved_model() {
+        let cmd = attach_agent_command(
+            "opencode",
+            None,
+            None,
+            "",
+            Some("openrouter/deepseek/deepseek-v4-flash-0731"),
+        );
+        let script = &cmd[2];
+        assert!(
+            script.contains("exec opencode --model 'openrouter/deepseek/deepseek-v4-flash-0731'"),
+            "{script}"
+        );
     }
 
     #[test]

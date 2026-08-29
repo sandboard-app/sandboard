@@ -1,7 +1,8 @@
 # Quickstart
 
-Get the board running on your machine in a few minutes, without OpenShell or
-credentials. Nothing dispatches until you set those up and start a card.
+Get Sandboard running locally, then connect OpenShell before dispatching agent
+work. The board can start without a gateway or credentials, but it cannot run an
+agent until you configure them.
 
 When you are ready for sandboxed runs, use the empty-board **Welcome** guide
 (or **Help**) — OpenShell + sandbox before the Project loop — then the checklist

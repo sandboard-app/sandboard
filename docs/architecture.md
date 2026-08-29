@@ -35,7 +35,11 @@ UI / MCP / supervisor
 | `web/` | React UI + Playwright screenshot harness. |
 | `migrations/` | Versioned SQLx migrations for the board store. |
 
-## Supervisor
+## Sandboard's supervisor
+
+The supervisor is an internal part of Sandboard, not a separate service. It is the
+execution loop that connects Board state to the OpenShell gateway and keeps a run
+reconciled with the card that started it.
 
 The supervisor:
 

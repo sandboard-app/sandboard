@@ -106,10 +106,11 @@ of the sandbox image. Hermes card/chat turns use headless
 
 ## Credentials inside the sandbox
 
-Model auth comes from OpenShell providers. Claude/OpenCode use `inference.local`;
-Hermes uses the attached `sandboard-openrouter` provider, which injects
-`OPENROUTER_API_KEY` only into the sandbox process. No host secret is copied into
-the image.
+Model auth comes from OpenShell providers. Claude uses `inference.local`;
+OpenCode and Hermes can use the attached `sandboard-openrouter` provider for
+direct OpenRouter models; OpenCode also retains the `inference.local` fallback.
+The provider injects `OPENROUTER_API_KEY` only into the sandbox process. No host
+secret is copied into the image.
 
 MCP auth from inside the sandbox works differently from the host. Host Cursor
 uses browser OAuth against `/mcp`, and that dance does not work cleanly from

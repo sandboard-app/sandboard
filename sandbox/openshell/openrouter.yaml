@@ -28,6 +28,8 @@ binaries:
   - /opt/hermes/.venv/bin/hermes
   - /opt/hermes/.venv/bin/python
   - /usr/bin/python3.12
+  - /usr/local/bin/opencode
+  - /opt/opencode/bin/opencode
   - /bin/sh
   - /usr/bin/sh
   - /bin/bash

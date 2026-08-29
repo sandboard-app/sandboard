@@ -5,11 +5,14 @@ under [`sandbox/`](https://github.com/sandboard-app/sandboard/tree/main/sandbox)
 
 ## How credentials reach the agent
 
-Claude Code and OpenCode talk to OpenShell's local inference router. Direct
-OpenRouter clients attach the endpoint-bearing `sandboard-openrouter` provider,
-which injects `OPENROUTER_API_KEY` into the sandbox and scopes that key to
-OpenRouter egress. Hermes is one such client; the key is sealed by OpenShell and
-never baked into the image or copied from the host at runtime.
+Claude Code talks to OpenShell's local inference router. OpenCode receives the
+resolved `provider/model` from the sandbox spec or card when one is set; its
+Anthropic-compatible local route remains available when no direct model is
+selected. Direct OpenRouter clients attach the endpoint-bearing
+`sandboard-openrouter` provider, which injects `OPENROUTER_API_KEY` into the
+sandbox and scopes that key to OpenRouter egress. Hermes is one such client; the
+key is sealed by OpenShell and never baked into the image or copied from the host
+at runtime.
 
 ```
 openshell provider create --name sandboard-openrouter --type openrouter \
@@ -35,7 +38,7 @@ Inside the sandbox sandboard exports (engine-specific):
 | Engine | Inference env | Notes |
 |---|---|---|
 | `claude` | `https://inference.local` | Claude appends `/v1/messages`; `--bare` + `--mcp-config` for MCP |
-| `opencode` | `https://inference.local/v1` | OpenCode requires the `/v1` suffix |
+| `opencode` | `https://inference.local/v1` | Anthropic-compatible fallback; an explicit `--model provider/model` selects the configured provider (for example `openrouter/deepseek/deepseek-v4-flash-0731`) |
 | `hermes` | `model.base_url=https://openrouter.ai/api/v1` | Hermes' built-in OpenRouter provider uses the endpoint; the attached `sandboard-openrouter` provider supplies `OPENROUTER_API_KEY` as an OpenShell placeholder and the image wrapper keeps `HERMES_HOME` in the sandbox |
 
 Do **not** set `CLAUDE_CODE_USE_VERTEX=1` in the sandbox. That forces direct
@@ -119,12 +122,13 @@ Which model an agent run uses depends on the engine.
 |---|---|---|
 | `agy` | `card.model` → sandbox spec **model** → `DEFAULT_SEAT_MODEL` (`gemini-3.6-flash-high`) | Optional **Model** on **Settings → OpenShell → Sandbox specs**; per-card `model` on claim overrides the spec |
 | `cursor` | `card.model` → sandbox spec **model** → Cursor account default (no sandboard fallback) | Same optional **Model** field; omit it to use the account default for your API key |
-| `claude`, `opencode` | OpenShell `inference.local` — gateway route from `openshell inference set` | Gateway CLI once per install (see [How credentials reach the agent](#how-credentials-reach-the-agent)); **not** the sandbox spec model field |
+| `claude` | OpenShell `inference.local` — gateway route from `openshell inference set` | Gateway CLI once per install (see [How credentials reach the agent](#how-credentials-reach-the-agent)); not the sandbox spec model field |
+| `opencode` | `card.model` → sandbox spec **model** as `--model provider/model` → OpenCode default | Set **Model** on the spec and attach the matching provider, such as `openrouter`, for direct provider routing |
 | `hermes` | `card.model` → sandbox spec **model** → Hermes image default (`openai/gpt-4o-mini`) | Optional **Model** field; the `openrouter` provider supplies `OPENROUTER_API_KEY` |
 
 For engines whose CLI accepts `--model` on launch, sandboard injects the resolved
 value into the supervisor start script and Cockpit attach/chat argv. Today that
-is `agy`, `cursor`, and `hermes` (`hermes --model`). Put `--model` **before** `-p` when
+is `agy`, `cursor`, `opencode`, and `hermes`. Put `--model` **before** `-p` when
 invoking agy manually — `-p` takes the next argv as the prompt.
 
 Seeded sandbox specs load with **model** unset; `agy` cards then get
