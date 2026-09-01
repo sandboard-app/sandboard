@@ -42,6 +42,7 @@ impl<E: std::fmt::Display> From<E> for ApiError {
 
 type ApiResult<T> = Result<Json<T>, ApiError>;
 
+/// Top-level API router.
 pub fn routes() -> Router<SharedBoard> {
     Router::new()
         .route("/version", get(version))
@@ -99,10 +100,6 @@ pub fn routes() -> Router<SharedBoard> {
         .route("/workspace", get(get_workspace).put(put_workspace))
         .route("/webhook-poll", get(get_webhook_poll).put(put_webhook_poll))
         .route(
-            "/agent-runtime",
-            get(get_agent_runtime).put(put_agent_runtime),
-        )
-        .route(
             "/cockpit-session",
             get(get_cockpit_session)
                 .post(create_cockpit_session)
@@ -119,6 +116,21 @@ pub fn routes() -> Router<SharedBoard> {
         // Board cockpit_session stays authoritative for both.
         .merge(crate::cockpit_attach::routes())
         .merge(crate::cockpit_chat::routes())
+        // Settings are grouped under /settings for clarity:
+        //   /settings/agent-runtime
+        //   /settings/openshell/...
+        //   /settings/github-app/...
+        .nest("/settings", settings_routes())
+        .nest("/auth", crate::auth::api_settings_routes())
+}
+
+/// All configuration / settings endpoints, nested under `/settings/…`.
+pub fn settings_routes() -> Router<SharedBoard> {
+    Router::new()
+        .route(
+            "/agent-runtime",
+            get(get_agent_runtime).put(put_agent_runtime),
+        )
         .route("/openshell/status", get(openshell_status))
         .route("/openshell", get(get_openshell).put(put_openshell))
         .nest(
@@ -179,7 +191,6 @@ pub fn routes() -> Router<SharedBoard> {
             "/github-app/repo-access/refresh",
             post(refresh_github_repo_access),
         )
-        .nest("/auth", crate::auth::api_settings_routes())
 }
 
 #[derive(Serialize)]

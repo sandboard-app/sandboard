@@ -11,10 +11,15 @@ import type {
   WorkspaceBinding,
 } from "../types.js";
 import { OpenShellMcpServersPanel } from "./OpenShellMcpServers.js";
+import { OpenShellPoliciesPanel } from "./OpenShellPolicies.js";
+import { OpenShellProvidersPanel } from "./OpenShellProviders.js";
+import { OpenShellProviderTypesPanel } from "./OpenShellProviderTypes.js";
 import {
   OpenShellPanel,
   type OpenShellTab,
 } from "./OpenShellSettings.js";
+import { SandboxesPanel } from "./OpenShellProfiles.js";
+import type { GitHubAppSettings } from "../types.js";
 
 export { OpenShellPanelView } from "./OpenShellSettings.js";
 export { OpenShellProvidersPanelView } from "./OpenShellProviders.js";
@@ -35,12 +40,16 @@ export {
 export type { SettingsSection } from "../location.js";
 
 const SECTIONS: { id: SettingsSection; label: string; stub?: boolean }[] = [
+  // OpenShell sub-sections map to /api/settings/openshell/*
   { id: "openshell", label: "OpenShell" },
-  { id: "mcp-servers", label: "MCP servers" },
-  { id: "access", label: "Access" },
-  // Nav label is Forge — "Workspace" implied a single work repo (upstream/fork).
+  { id: "openshell/providers", label: "Providers" },
+  { id: "openshell/provider-types", label: "Provider types" },
+  { id: "openshell/policies", label: "Policies" },
+  { id: "openshell/profiles", label: "Sandbox specs" },
+  { id: "openshell/mcp-servers", label: "MCP servers" },
+  { id: "auth", label: "Access" },
   { id: "workspace", label: "Forge" },
-  { id: "repo-access", label: "Repo access" },
+  { id: "github-app", label: "GitHub App" },
   { id: "agent-runtime", label: "Agent runtime" },
 ];
 
@@ -143,18 +152,23 @@ export function Settings({
 
         <div className="settings-panel" data-testid={`settings-panel-${section}`}>
           {section === "openshell" ? (
-            <OpenShellPanel
-              activeTab={openShellTab}
-              onTabChange={onOpenShellTabChange}
-            />
-          ) : section === "mcp-servers" ? (
+            <OpenShellPanel activeTab={openShellTab} onTabChange={onOpenShellTabChange} />
+          ) : section === "openshell/providers" ? (
+            <OpenShellProvidersPanel gatewayHealthy={false} />
+          ) : section === "openshell/provider-types" ? (
+            <OpenShellProviderTypesPanel />
+          ) : section === "openshell/policies" ? (
+            <OpenShellPoliciesPanel />
+          ) : section === "openshell/profiles" ? (
+            <SandboxesPanel />
+          ) : section === "openshell/mcp-servers" ? (
             <OpenShellMcpServersPanel />
-          ) : section === "access" ? (
+          ) : section === "auth" ? (
             <AccessPanel />
           ) : section === "workspace" ? (
             <WorkspacePanel />
-          ) : section === "repo-access" ? (
-            <RepoAccessPanel />
+          ) : section === "github-app" ? (
+            <GithubAppPanel />
           ) : (
             <AgentRuntimePanel />
           )}
@@ -679,11 +693,6 @@ function WorkspacePanel() {
   );
 }
 
-const emptyRepoAccess = (): GitHubRepoAccessView => ({
-  install_url: "https://github.com/settings/installations",
-  installations: [],
-});
-
 function permissionSummary(permissions?: Record<string, string>): string {
   if (!permissions) return "";
   const granted = Object.entries(permissions)
@@ -813,60 +822,6 @@ export function RepoAccessPanelView({
         </ul>
       )}
     </section>
-  );
-}
-
-function RepoAccessPanel() {
-  const [view, setView] = useState<GitHubRepoAccessView>(emptyRepoAccess);
-  const [loading, setLoading] = useState(true);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const load = useCallback(() => {
-    return api
-      .getGitHubRepoAccess()
-      .then((next) => {
-        setView(next);
-        setError(null);
-      })
-      .catch((e) => setError(String(e)))
-      .finally(() => {
-        setBusy(false);
-        setLoading(false);
-      });
-  }, []);
-
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  if (loading && !error) {
-    return (
-      <section aria-labelledby="repo-access-title" data-testid="repo-access-panel">
-        <h2 id="repo-access-title">Repo access</h2>
-        <p className="dim">loading…</p>
-      </section>
-    );
-  }
-
-  return (
-    <RepoAccessPanelView
-      view={view}
-      busy={busy}
-      error={error}
-      onRefresh={() => {
-        setBusy(true);
-        setError(null);
-        api
-          .refreshGitHubRepoAccess()
-          .then((next) => {
-            setView(next);
-            setError(null);
-          })
-          .catch((e) => setError(String(e)))
-          .finally(() => setBusy(false));
-      }}
-    />
   );
 }
 
@@ -1101,5 +1056,138 @@ function AgentRuntimePanel() {
           .finally(() => setBusy(false));
       }}
     />
+  );
+}
+
+function emptyGithubApp(): GitHubAppSettings {
+  return {
+    app_id: null,
+    client_id: null,
+    private_key_pem: null,
+    webhook_secret: null,
+    client_secret: null,
+    installation_id: null,
+    clear_installation_id: false,
+    clear: false,
+    status: { app_id: false, private_key: false, webhook_secret: false, client_id: false, client_secret: false, complete: false },
+    installations: [],
+    token_status: { configured: false, provider_attached: false },
+  };
+}
+
+function GithubAppPanel() {
+  const [draft, setDraft] = useState<GitHubAppSettings>(emptyGithubApp());
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [savedHint, setSavedHint] = useState<string | null>(null);
+
+  const refresh = useCallback(() => {
+    setLoading(true);
+    return api
+      .getGitHubApp()
+      .then((cfg) => {
+        setDraft({
+          ...emptyGithubApp(),
+          ...cfg,
+        });
+        setError(null);
+      })
+      .catch((e) => setError(String(e)))
+      .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  if (loading && !error) {
+    return (
+      <section aria-labelledby="github-app-title" data-testid="github-app-panel">
+        <h2 id="github-app-title">GitHub App</h2>
+        <p className="dim">loading…</p>
+      </section>
+    );
+  }
+
+  return (
+    <section aria-labelledby="github-app-title" data-testid="github-app-panel">
+      <h2 id="github-app-title">GitHub App</h2>
+      <p className="dim">
+        Configure the GitHub App for sandboard. Requires App ID, private key,
+        webhook secret, and an installation.
+      </p>
+
+      {error && <div className="err">{error}</div>}
+      {savedHint && (
+        <p className="dim" data-testid="github-app-saved-hint">{savedHint}</p>
+      )}
+
+      <div className="openshell-health" data-testid="github-app-status">
+        <div className="openshell-health-row">
+          <span className="dim">Status</span>
+          <strong>
+            {draft.status?.complete ? "Complete" : "Incomplete — missing fields"}
+          </strong>
+        </div>
+        {draft.token_status?.configured && (
+          <div className="openshell-health-row">
+            <span className="dim">Token</span>
+            <strong className="openshell-health-ok">Configured</strong>
+          </div>
+        )}
+        {draft.token_status?.provider_attached && (
+          <div className="openshell-health-row">
+            <span className="dim">Provider</span>
+            <strong className="openshell-health-ok">Attached</strong>
+          </div>
+        )}
+      </div>
+
+      <div className="btns">
+        <button
+          type="button"
+          className="primary"
+          disabled={busy}
+          data-testid="github-app-sync-token"
+          onClick={() => {
+            setBusy(true);
+            api
+              .syncGitHubAppToken()
+              .then((cfg) => {
+                setDraft({ ...draft, ...cfg });
+                setSavedHint("Token synced.");
+              })
+              .catch((e) => setError(String(e)))
+              .finally(() => setBusy(false));
+          }}
+        >
+          Sync token
+        </button>
+        <a
+          className="button-link"
+          href="https://github.com/settings/installations"
+          target="_blank"
+          rel="noreferrer"
+          data-testid="github-app-install-link"
+        >
+          Install / add repos on GitHub
+        </a>
+        <button
+          type="button"
+          disabled={busy}
+          data-testid="github-app-refresh"
+          onClick={() => {
+            setSavedHint(null);
+            refresh();
+          }}
+        >
+          Refresh
+        </button>
+      </div>
+
+
+      {draft.token_status?.error && <p className="err">{draft.token_status.error}</p>}
+    </section>
   );
 }
