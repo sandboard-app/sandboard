@@ -146,6 +146,18 @@ pub const ENGINES: &[Engine] = &[
         conversation_id_pointers: &[],
         pre_start_auth: PreStartAuth::None,
     },
+    Engine {
+        id: "pi",
+        // Headless mode: JSON events on stdout, auto-approve tool perms
+        // (sandbox is already the containment boundary). Prompt is positional.
+        prefix: "pi --mode json",
+        post_model: "",
+        trailing: "",
+        prompt: PromptStyle::Positional,
+        resume: None,
+        conversation_id_pointers: &[],
+        pre_start_auth: PreStartAuth::None,
+    },
 ];
 
 /// Env var name substituted into the engine command for the prompt/briefing.

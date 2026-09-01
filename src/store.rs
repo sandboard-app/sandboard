@@ -3368,12 +3368,13 @@ impl Board {
     /// their edit; this never overwrites.
     fn ensure_shipped_cockpit_policies(&self) -> bool {
         use crate::seed_policies::*;
-        let rows: [(&str, &str, &str); 5] = [
+        let rows: [(&str, &str, &str); 6] = [
             (COCKPIT_CURSOR_POLICY_ID, COCKPIT_CURSOR_POLICY_NAME, COCKPIT_CURSOR_POLICY),
             (COCKPIT_AGY_POLICY_ID, COCKPIT_AGY_POLICY_NAME, COCKPIT_AGY_POLICY),
             (COCKPIT_CLAUDE_POLICY_ID, COCKPIT_CLAUDE_POLICY_NAME, COCKPIT_CLAUDE_POLICY),
             (COCKPIT_OPENCODE_POLICY_ID, COCKPIT_OPENCODE_POLICY_NAME, COCKPIT_OPENCODE_POLICY),
             (COCKPIT_HERMES_POLICY_ID, COCKPIT_HERMES_POLICY_NAME, COCKPIT_HERMES_POLICY),
+            (COCKPIT_PI_POLICY_ID, COCKPIT_PI_POLICY_NAME, COCKPIT_PI_POLICY),
         ];
         let mut s = self.state.write();
         let mut changed = false;
@@ -3410,12 +3411,13 @@ impl Board {
         self.ensure_shipped_mcp_servers();
         self.ensure_shipped_cockpit_policies();
         use crate::seed_policies::*;
-        let rows: [(&str, &str, &str, &str, &str); 5] = [
+        let rows: [(&str, &str, &str, &str, &str); 6] = [
             ("sandbox-cursor", "Sandbox (cursor)", "quay.io/sandboard-app/sandbox-cursor:latest", COCKPIT_CURSOR_POLICY_ID, "cursor"),
             ("sandbox-agy", "Sandbox (agy)", "quay.io/sandboard-app/sandbox-agy:latest", COCKPIT_AGY_POLICY_ID, "agy"),
             ("sandbox-claude", "Sandbox (claude)", "quay.io/sandboard-app/sandbox-claude:latest", COCKPIT_CLAUDE_POLICY_ID, "claude"),
             ("sandbox-opencode", "Sandbox (opencode)", "quay.io/sandboard-app/sandbox-opencode:latest", COCKPIT_OPENCODE_POLICY_ID, "opencode"),
             ("sandbox-hermes", "Sandbox (hermes)", "quay.io/sandboard-app/sandbox-hermes:latest", COCKPIT_HERMES_POLICY_ID, "hermes"),
+            ("sandbox-pi", "Sandbox (pi)", "quay.io/sandboard-app/sandbox-pi:latest", COCKPIT_PI_POLICY_ID, "pi"),
         ];
         let mut s = self.state.write();
         let mut changed = false;
@@ -12836,9 +12838,7 @@ mod tests {
 
         let restored = Board::load_or_new(Schema::default(), path.clone());
         assert_eq!(restored.default_sandbox_profile_id().as_deref(), Some("ci"));
-        // 2 operator profiles (default, ci) + 5 shipped sandbox-<engine> rows
-        // seeded on boot (ensure_shipped_sandbox_profiles).
-        assert_eq!(restored.list_sandbox_profiles().len(), 7);
+        assert_eq!(restored.list_sandbox_profiles().len(), 8);
         let p = restored.get(project.id).expect("project");
         assert_eq!(p.sandbox_profile_id.as_deref(), Some("default"));
         assert_eq!(
