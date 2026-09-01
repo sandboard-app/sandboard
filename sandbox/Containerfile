@@ -280,7 +280,8 @@ RUN mkdir -p /sandbox/.pi/agent/sessions /sandbox/.pi/agent/extensions /sandbox/
 COPY sandbox/pi/settings.json /sandbox/.pi/agent/settings.json
 COPY sandbox/pi/pi /usr/local/bin/pi
 RUN chmod -R 0755 /sandbox/.pi \
- && chown -R 997:997 /sandbox/.pi \
+ && chown -R sandbox:root /sandbox/.pi \
+ && chmod -R g=u /sandbox/.pi \
  && chmod 0755 /usr/local/bin/pi
 
 USER sandbox
