@@ -248,41 +248,41 @@ export const api = {
     put("/webhook-poll", cfg),
 
   getAgentRuntime: (): Promise<AgentRuntimeConfig> =>
-    fetch("/api/agent-runtime", fetchOpts).then(jsonOrThrow),
+    fetch("/api/settings/agent-runtime", fetchOpts).then(jsonOrThrow),
   putAgentRuntime: (settings: AgentRuntimeConfig): Promise<AgentRuntimeConfig> =>
-    put("/agent-runtime", settings),
+    put("/settings/agent-runtime", settings),
 
   getOpenShell: (): Promise<OpenShellSettings> =>
-    fetch("/api/openshell", fetchOpts).then(jsonOrThrow),
+    fetch("/api/settings/openshell", fetchOpts).then(jsonOrThrow),
   putOpenShell: (settings: OpenShellSettings): Promise<OpenShellSettings> =>
-    put("/openshell", settings),
+    put("/settings/openshell", settings),
   getOpenShellStatus: (): Promise<OpenShellStatus> =>
-    fetch("/api/openshell/status", fetchOpts).then(jsonOrThrow),
+    fetch("/api/settings/openshell/status", fetchOpts).then(jsonOrThrow),
   openshellOidcLogin: (): Promise<{
     authorize_url: string;
     redirect_uri: string;
-  }> => post("/openshell/oidc/login"),
+  }> => post("/settings/openshell/oidc/login"),
   openshellOidcComplete: (body: {
     redirect: string;
-  }): Promise<{ ok: boolean }> => post("/openshell/oidc/complete", body),
+  }): Promise<{ ok: boolean }> => post("/settings/openshell/oidc/complete", body),
   openshellOidcLogout: (): Promise<{ ok: boolean; error?: string | null }> =>
-    post("/openshell/oidc/logout"),
+    post("/settings/openshell/oidc/logout"),
 
   getGitHubApp: (): Promise<GitHubAppSettings> =>
-    fetch("/api/github-app", fetchOpts).then(jsonOrThrow),
+    fetch("/api/settings/github-app", fetchOpts).then(jsonOrThrow),
   putGitHubApp: (settings: GitHubAppSettings): Promise<GitHubAppSettings> =>
-    put("/github-app", settings),
+    put("/settings/github-app", settings),
   syncGitHubAppToken: (): Promise<GitHubAppSettings> =>
-    post("/github-app/sync-token"),
+    post("/settings/github-app/sync-token"),
   getGitHubRepoAccess: (): Promise<GitHubRepoAccessView> =>
-    fetch("/api/github-app/repo-access", fetchOpts).then(jsonOrThrow),
+    fetch("/api/settings/github-app/repo-access", fetchOpts).then(jsonOrThrow),
   refreshGitHubRepoAccess: (): Promise<GitHubRepoAccessView> =>
-    post("/github-app/repo-access/refresh"),
+    post("/settings/github-app/repo-access/refresh"),
 
   listOpenShellPolicies: (): Promise<OpenShellPoliciesOut> =>
-    fetch("/api/openshell/policies", fetchOpts).then(jsonOrThrow),
+    fetch("/api/settings/openshell/policies", fetchOpts).then(jsonOrThrow),
   getOpenShellPolicy: (id: string): Promise<OpenShellPolicy> =>
-    fetch(`/api/openshell/policies/${encodeURIComponent(id)}`, fetchOpts).then(
+    fetch(`/api/settings/openshell/policies/${encodeURIComponent(id)}`, fetchOpts).then(
       jsonOrThrow,
     ),
   upsertOpenShellPolicy: (body: {
@@ -290,14 +290,14 @@ export const api = {
     id?: string;
     name: string;
     yaml: string;
-  }): Promise<OpenShellPolicy> => post("/openshell/policies", body),
+  }): Promise<OpenShellPolicy> => post("/settings/openshell/policies", body),
   deleteOpenShellPolicy: (id: string): Promise<{ ok: boolean }> =>
-    del(`/openshell/policies/${encodeURIComponent(id)}`),
+    del(`/settings/openshell/policies/${encodeURIComponent(id)}`),
 
   listMcpServers: (): Promise<McpServersOut> =>
-    fetch("/api/openshell/mcp-servers", fetchOpts).then(jsonOrThrow),
+    fetch("/api/settings/openshell/mcp-servers", fetchOpts).then(jsonOrThrow),
   getMcpServer: (id: string): Promise<McpServerDesired> =>
-    fetch(`/api/openshell/mcp-servers/${encodeURIComponent(id)}`, fetchOpts).then(
+    fetch(`/api/settings/openshell/mcp-servers/${encodeURIComponent(id)}`, fetchOpts).then(
       jsonOrThrow,
     ),
   upsertMcpServer: (body: {
@@ -308,40 +308,40 @@ export const api = {
     provider_names?: string[];
     env?: Record<string, string>;
     audience?: McpAudience;
-  }): Promise<McpServerDesired> => post("/openshell/mcp-servers", body),
+  }): Promise<McpServerDesired> => post("/settings/openshell/mcp-servers", body),
   deleteMcpServer: (id: string): Promise<{ ok: boolean }> =>
-    del(`/openshell/mcp-servers/${encodeURIComponent(id)}`),
+    del(`/settings/openshell/mcp-servers/${encodeURIComponent(id)}`),
   discoverMcpOAuth: (body: {
     url: string;
   }): Promise<{ supported: boolean; error?: string }> =>
-    post("/openshell/mcp-servers/oauth/discover", body),
+    post("/settings/openshell/mcp-servers/oauth/discover", body),
   startMcpOAuth: (body: {
     url: string;
     server_id?: string;
     name?: string;
     return_path?: string;
   }): Promise<{ authorize_url: string; server_id: string }> =>
-    post("/openshell/mcp-servers/oauth/start", body),
+    post("/settings/openshell/mcp-servers/oauth/start", body),
   disconnectMcpOAuth: (server_id: string): Promise<{ ok: boolean }> =>
-    post("/openshell/mcp-servers/oauth/disconnect", { server_id }),
+    post("/settings/openshell/mcp-servers/oauth/disconnect", { server_id }),
 
   listOpenShellProviders: (): Promise<OpenShellProvidersOut> =>
-    fetch("/api/openshell/providers", fetchOpts).then(jsonOrThrow),
+    fetch("/api/settings/openshell/providers", fetchOpts).then(jsonOrThrow),
   createOpenShellProvider: (body: OpenShellProviderWrite): Promise<OpenShellProviderView> =>
-    post("/openshell/providers", body),
+    post("/settings/openshell/providers", body),
   updateOpenShellProvider: (
     name: string,
     body: OpenShellProviderWrite,
   ): Promise<OpenShellProviderView> =>
-    put(`/openshell/providers/${encodeURIComponent(name)}`, body),
+    put(`/settings/openshell/providers/${encodeURIComponent(name)}`, body),
   deleteOpenShellProvider: (name: string): Promise<null> =>
-    del(`/openshell/providers/${encodeURIComponent(name)}`),
+    del(`/settings/openshell/providers/${encodeURIComponent(name)}`),
   syncOpenShellProviders: (): Promise<SyncProvidersOut> =>
-    post("/openshell/providers/sync"),
+    post("/settings/openshell/providers/sync"),
   startAntigravityOAuth: (body?: {
     return_path?: string;
   }): Promise<{ authorize_url: string; redirect_uri: string }> =>
-    post("/openshell/providers/antigravity/oauth/start", body ?? {}),
+    post("/settings/openshell/providers/antigravity/oauth/start", body ?? {}),
   completeAntigravityOAuth: (body: {
     authorization_code: string;
   }): Promise<{
@@ -349,17 +349,17 @@ export const api = {
     projects: { id: string; name?: string }[];
     needs_project: boolean;
     selected_project?: string;
-  }> => post("/openshell/providers/antigravity/oauth/complete", body),
+  }> => post("/settings/openshell/providers/antigravity/oauth/complete", body),
   selectAntigravityProject: (body: {
     project_id: string;
   }): Promise<{ ok: boolean; project_id: string }> =>
-    post("/openshell/providers/antigravity/oauth/select-project", body),
+    post("/settings/openshell/providers/antigravity/oauth/select-project", body),
   disconnectAntigravityOAuth: (): Promise<{ ok: boolean }> =>
-    post("/openshell/providers/antigravity/oauth/disconnect", {}),
+    post("/settings/openshell/providers/antigravity/oauth/disconnect", {}),
   listOpenShellProviderProfiles: (): Promise<ProviderTypeProfile[]> =>
-    fetch("/api/openshell/provider-profiles", fetchOpts).then(jsonOrThrow),
+    fetch("/api/settings/openshell/provider-profiles", fetchOpts).then(jsonOrThrow),
   listOpenShellProviderTypes: (): Promise<OpenShellProviderTypeEntry[]> =>
-    fetch("/api/openshell/provider-types", fetchOpts).then(jsonOrThrow),
+    fetch("/api/settings/openshell/provider-types", fetchOpts).then(jsonOrThrow),
   putOpenShellProviderType: (
     body: OpenShellProviderTypeWrite,
   ): Promise<{
@@ -367,9 +367,9 @@ export const api = {
     yaml: string;
     shipped: boolean;
     form_config_keys: string[];
-  }> => put("/openshell/provider-types", body),
+  }> => put("/settings/openshell/provider-types", body),
   deleteOpenShellProviderType: (id: string): Promise<null> =>
-    del(`/openshell/provider-types/${encodeURIComponent(id)}`),
+    del(`/settings/openshell/provider-types/${encodeURIComponent(id)}`),
 
   /** Board cockpit-session singleton — Cockpit polls this; no local lifecycle. */
   getCockpitSession: (): Promise<CockpitSessionOut> =>

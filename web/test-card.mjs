@@ -1083,8 +1083,8 @@ const settingsHtml = renderToString(React.createElement(Settings));
 assert(settingsHtml.includes("data-testid=\"settings\""), "Settings view should render");
 assert(!settingsHtml.includes("data-testid=\"settings-nav-sandboxes\""), "Sandboxes nav item removed");
 assert(settingsHtml.includes("data-testid=\"settings-nav-openshell\""), "Settings should nav to OpenShell");
-assert(settingsHtml.includes("data-testid=\"settings-nav-mcp-servers\""), "Settings should nav to MCP servers");
-assert(!settingsHtml.includes("data-testid=\"settings-nav-github-app\""), "GitHub App folded into OpenShell Providers");
+assert(settingsHtml.includes("data-testid=\"settings-nav-openshell/mcp-servers\""), "Settings should nav to MCP servers");
+assert(settingsHtml.includes("data-testid=\"settings-nav-github-app\""), "Settings should nav to GitHub App");
 assert(settingsHtml.includes("data-testid=\"openshell-panel\""), "Default section is OpenShell");
 assert(settingsHtml.includes("data-testid=\"openshell-subnav\""), "OpenShell has section subnav");
 assert(settingsHtml.includes("data-testid=\"openshell-tab-profiles\""), "OpenShell tab for Profiles");
@@ -1094,7 +1094,7 @@ assert(settingsHtml.includes("data-testid=\"openshell-connectivity\""), "Default
 assert(settingsHtml.includes("Connectivity"), "Settings OpenShell names Connectivity");
 assert(settingsHtml.includes("Forge"), "Settings should include Forge section");
 assert(settingsHtml.includes("data-testid=\"settings-nav-workspace\""), "Settings should nav to Forge (workspace id)");
-assert(settingsHtml.includes("data-testid=\"settings-nav-repo-access\""), "Settings should nav to Repo access");
+assert(!settingsHtml.includes("data-testid=\"settings-nav-repo-access\""), "Repo access removed — replaced by GitHub App");
 assert(settingsHtml.includes("OpenShell"), "Settings should include OpenShell section");
 assert(settingsHtml.includes("MCP servers"), "Settings should include MCP servers section");
 assert(settingsHtml.includes("Agent runtime"), "Settings should include Agent runtime section");
@@ -1630,10 +1630,10 @@ assert(openshellPoliciesTabHtml.includes("data-testid=\"openshell-policies-slot\
 assert(!openshellPoliciesTabHtml.includes("data-testid=\"openshell-profiles-slot\""), "Profiles slot hidden on Policies tab");
 
 const mcpServersSectionHtml = renderToString(
-  React.createElement(Settings, { section: "mcp-servers" }),
+  React.createElement(Settings, { section: "openshell/mcp-servers" }),
 );
 assert(
-  mcpServersSectionHtml.includes("data-testid=\"settings-panel-mcp-servers\""),
+  mcpServersSectionHtml.includes("data-testid=\"settings-panel-openshell/mcp-servers\""),
   "MCP servers settings panel host",
 );
 assert(
@@ -2617,38 +2617,32 @@ assert.deepStrictEqual(parseChromeLocation("/settings/openshell"), {
 assert.deepStrictEqual(parseChromeLocation("/settings/openshell/providers"), {
   view: "settings",
   cardId: null,
-  settingsSection: "openshell",
-  openShellTab: "providers",
+  settingsSection: "openshell/providers",
+  openShellTab: "connectivity",
 });
 assert.deepStrictEqual(parseChromeLocation("/settings/openshell/provider-types"), {
   view: "settings",
   cardId: null,
-  settingsSection: "openshell",
-  openShellTab: "provider-types",
+  settingsSection: "openshell/provider-types",
+  openShellTab: "connectivity",
 });
 assert.deepStrictEqual(parseChromeLocation("/settings/openshell/policies"), {
   view: "settings",
   cardId: null,
-  settingsSection: "openshell",
-  openShellTab: "policies",
-});
-assert.deepStrictEqual(parseChromeLocation("/settings/mcp-servers"), {
-  view: "settings",
-  cardId: null,
-  settingsSection: "mcp-servers",
+  settingsSection: "openshell/policies",
   openShellTab: "connectivity",
 });
 assert.deepStrictEqual(parseChromeLocation("/settings/openshell/mcp-servers"), {
   view: "settings",
   cardId: null,
-  settingsSection: "mcp-servers",
+  settingsSection: "openshell/mcp-servers",
   openShellTab: "connectivity",
 });
 assert.deepStrictEqual(parseChromeLocation("/settings/openshell/profiles"), {
   view: "settings",
   cardId: null,
-  settingsSection: "openshell",
-  openShellTab: "profiles",
+  settingsSection: "openshell/profiles",
+  openShellTab: "connectivity",
 });
 assert.deepStrictEqual(parseChromeLocation("/settings/openshell/connectivity"), {
   view: "settings",
@@ -2659,13 +2653,13 @@ assert.deepStrictEqual(parseChromeLocation("/settings/openshell/connectivity"), 
 assert.deepStrictEqual(parseChromeLocation("/settings/github-app"), {
   view: "settings",
   cardId: null,
-  settingsSection: "openshell",
-  openShellTab: "providers",
+  settingsSection: "github-app",
+  openShellTab: "connectivity",
 });
-assert.deepStrictEqual(parseChromeLocation("/settings/access"), {
+assert.deepStrictEqual(parseChromeLocation("/settings/auth"), {
   view: "settings",
   cardId: null,
-  settingsSection: "access",
+  settingsSection: "auth",
   openShellTab: "connectivity",
 });
 assert.deepStrictEqual(parseChromeLocation("/settings/workspace"), {
@@ -2674,10 +2668,10 @@ assert.deepStrictEqual(parseChromeLocation("/settings/workspace"), {
   settingsSection: "workspace",
   openShellTab: "connectivity",
 });
-assert.deepStrictEqual(parseChromeLocation("/settings/repo-access"), {
+assert.deepStrictEqual(parseChromeLocation("/settings/github-app"), {
   view: "settings",
   cardId: null,
-  settingsSection: "repo-access",
+  settingsSection: "github-app",
   openShellTab: "connectivity",
 });
 assert.deepStrictEqual(parseChromeLocation("/settings/agent-runtime"), {
@@ -2987,12 +2981,12 @@ assert(
   );
   assert.deepStrictEqual(replaces, ["/card/3"], "replaceState for card deep link");
 }
-// Round-trip: settings section + OpenShell tab
+// Round-trip: settings section paths
 for (const path of [
   "/settings",
   "/settings/openshell/providers",
   "/settings/openshell/profiles",
-  "/settings/access",
+  "/settings/auth",
   "/settings/workspace",
   "/settings/agent-runtime",
 ]) {
@@ -3005,8 +2999,8 @@ for (const path of [
 }
 assert.strictEqual(
   formatChromePath(parseChromeLocation("/settings/github-app")),
-  "/settings/openshell/providers",
-  "legacy /settings/github-app canonicalizes to Providers",
+  "/settings/github-app",
+  "settings section produces matching path",
 );
 assert.strictEqual(
   formatChromePath(parseChromeLocation("/settings/openshell")),
@@ -3019,27 +3013,15 @@ assert.strictEqual(
   "explicit connectivity tab canonicalizes to /settings",
 );
 {
-  // Controlled Settings deep-link: section + OpenShell tab from URL contract
+  // Controlled Settings deep-link: section from URL contract
   const settingsDeepHtml = renderToString(
     React.createElement(Settings, {
-      section: "openshell",
-      openShellTab: "providers",
+      section: "openshell/providers",
     }),
   );
   assert(
-    settingsDeepHtml.includes("data-testid=\"settings-panel-openshell\""),
-    "Settings deep link opens OpenShell section",
-  );
-  assert(
-    settingsDeepHtml.includes("data-testid=\"openshell-providers-slot\"") ||
-      settingsDeepHtml.includes("data-testid=\"openshell-tab-providers\""),
-    "Settings deep link selects OpenShell Providers tab",
-  );
-  assert(
-    /aria-current="page"[^>]*data-testid="openshell-tab-providers"|data-testid="openshell-tab-providers"[^>]*aria-current="page"/.test(
-      settingsDeepHtml,
-    ),
-    "Providers tab marked current for deep link",
+    settingsDeepHtml.includes("data-testid=\"settings-panel-openshell/providers\""),
+    "Settings deep link opens OpenShell Providers section",
   );
   const forgeDeepHtml = renderToString(
     React.createElement(Settings, { section: "workspace" }),

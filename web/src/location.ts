@@ -1,13 +1,32 @@
 import type { AppView } from "./components/PrimarySidebar";
 import type { OpenShellTab } from "./components/OpenShellSettings";
 
-/** Settings nav sections mirrored under `/settings/...`. */
+/** Settings nav sections mirrored under `/settings/...`.
+ *
+ * Each section maps to its corresponding API endpoint:
+ *   openshell                       → GET/PUT  /api/settings/openshell
+ *   openshell/providers             → GET/POST /api/settings/openshell/providers
+ *   openshell/provider-types        → GET/PUT  /api/settings/openshell/provider-types
+ *   openshell/provider-types/{id}   → DELETE /api/settings/openshell/provider-types/{id}
+ *   openshell/policies              → GET/POST /api/settings/openshell/policies
+ *   openshell/policies/{id}         → GET/DELETE /api/settings/openshell/policies/{id}
+ *   openshell/profiles              → GET/POST /api/sandbox-profiles
+ *   openshell/mcp-servers           → GET/POST /api/settings/openshell/mcp-servers
+ *   auth                            → GET/PUT  /api/auth/settings
+ *   workspace                       → GET/PUT  /api/workspace
+ *   github-app                      → GET/PUT  /api/settings/github-app
+ *   agent-runtime                   → GET/PUT  /api/settings/agent-runtime
+ */
 export type SettingsSection =
   | "openshell"
-  | "mcp-servers"
-  | "access"
+  | "openshell/providers"
+  | "openshell/provider-types"
+  | "openshell/policies"
+  | "openshell/profiles"
+  | "openshell/mcp-servers"
+  | "auth"
   | "workspace"
-  | "repo-access"
+  | "github-app"
   | "agent-runtime";
 
 export const DEFAULT_SETTINGS_SECTION: SettingsSection = "openshell";
@@ -15,20 +34,18 @@ export const DEFAULT_OPENSHELL_TAB: OpenShellTab = "connectivity";
 
 const SETTINGS_SECTIONS = new Set<string>([
   "openshell",
-  "mcp-servers",
-  "access",
+  "openshell/providers",
+  "openshell/provider-types",
+  "openshell/policies",
+  "openshell/profiles",
+  "openshell/mcp-servers",
+  "auth",
   "workspace",
-  "repo-access",
+  "github-app",
   "agent-runtime",
 ]);
 
-const OPENSHELL_TABS = new Set<string>([
-  "connectivity",
-  "providers",
-  "provider-types",
-  "policies",
-  "profiles",
-]);
+
 
 /** Chrome + Settings location mirrored in the URL. */
 export type ChromeLocation = {
@@ -43,16 +60,21 @@ export type ChromeLocation = {
 
 /**
  * Path contract (works with ServeDir → index.html SPA fallback):
- *   `/`                                  → board
- *   `/help`                              → help
- *   `/settings`                          → settings / OpenShell / Connectivity
- *   `/settings/openshell`                → settings / OpenShell / Connectivity
- *   `/settings/openshell/:tab`           → settings / OpenShell / tab
- *   `/settings/mcp-servers`              → settings / MCP servers
- *   `/settings/openshell/mcp-servers`    → redirect: MCP servers (top-level)
- *   `/settings/:section`                 → settings / section
- *   `/settings/github-app`               → redirect target: OpenShell / Providers
- *   `/card/:id`                          → board with DetailDrawer open on that card
+ *   `/`                                        → board
+ *   `/help`                                    → help
+ *   `/settings`                                → settings / OpenShell / Connectivity
+ *   `/settings/openshell`                      → settings / OpenShell / Connectivity
+ *   `/settings/openshell/:tab`                 → settings / OpenShell / tab
+ *   `/settings/openshell/mcp-servers`          → settings / MCP servers
+ *   `/settings/auth`                           → settings / Access
+ *   `/settings/openshell/providers`            → settings / OpenShell / Providers
+ *   `/settings/openshell/provider-types`       → settings / OpenShell / Provider types
+ *   `/settings/openshell/policies`             → settings / OpenShell / Policies
+ *   `/settings/openshell/profiles`             → settings / OpenShell / Sandbox specs
+ *   `/settings/github-app`                     → settings / GitHub App
+ *   `/settings/agent-runtime`                  → settings / Agent runtime
+ *   `/settings/workspace`                      → settings / Forge
+ *   `/card/:id`                                → board with DetailDrawer open on that card
  */
 export function parseChromeLocation(pathname: string): ChromeLocation {
   const path = normalizePath(pathname);
@@ -85,6 +107,11 @@ export function formatChromePath(loc: ChromeLocation): string {
   if (loc.view === "help") return "/help";
   if (loc.view === "settings") {
     const section = loc.settingsSection || DEFAULT_SETTINGS_SECTION;
+    // Nested section like openshell/providers maps to /settings/openshell/providers
+    if (section !== "openshell" && section.startsWith("openshell/")) {
+      return `/settings/${section}`;
+    }
+    // OpenShell section: use tab for URL if non-default
     if (section === "openshell") {
       const tab = loc.openShellTab || DEFAULT_OPENSHELL_TAB;
       if (tab === DEFAULT_OPENSHELL_TAB) return "/settings";
@@ -138,7 +165,7 @@ export function normalizeChromeLocation(loc: ChromeLocation): ChromeLocation {
     ? loc.settingsSection
     : DEFAULT_SETTINGS_SECTION;
   const tab =
-    section === "openshell" && OPENSHELL_TABS.has(loc.openShellTab)
+    section === "openshell" && loc.openShellTab !== undefined
       ? loc.openShellTab
       : DEFAULT_OPENSHELL_TAB;
   return {
@@ -191,37 +218,19 @@ function parseSettingsPath(
     };
   }
 
-  const [head, tab] = parts;
-  // Retired top-level GitHub App page → Providers (App access token lives there).
-  if (head === "github-app") {
+  // Full section path: /settings/openshell/providers → "openshell/providers"
+  const section = parts.join("/");
+  if (SETTINGS_SECTIONS.has(section)) {
     return {
-      settingsSection: "openshell",
-      openShellTab: "providers",
-    };
-  }
-  // MCP servers used to live under OpenShell; keep the old path working.
-  if (head === "openshell" && tab === "mcp-servers") {
-    return {
-      settingsSection: "mcp-servers",
-      openShellTab: DEFAULT_OPENSHELL_TAB,
-    };
-  }
-  if (head === "openshell") {
-    if (tab && OPENSHELL_TABS.has(tab)) {
-      return {
-        settingsSection: "openshell",
-        openShellTab: tab as OpenShellTab,
-      };
-    }
-    return {
-      settingsSection: "openshell",
+      settingsSection: section as SettingsSection,
       openShellTab: DEFAULT_OPENSHELL_TAB,
     };
   }
 
-  if (SETTINGS_SECTIONS.has(head)) {
+  // /settings/openshell (no sub-path) → "openshell"
+  if (parts[0] === "openshell") {
     return {
-      settingsSection: head as SettingsSection,
+      settingsSection: "openshell",
       openShellTab: DEFAULT_OPENSHELL_TAB,
     };
   }
