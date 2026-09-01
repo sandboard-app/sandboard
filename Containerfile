@@ -6,7 +6,7 @@
 
 # ---- UI --------------------------------------------------------------------
 
-FROM docker.io/library/node:22-slim AS ui
+FROM docker.io/library/node:26-slim AS ui
 
 WORKDIR /src
 COPY web/package.json web/package-lock.json ./web/
