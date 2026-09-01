@@ -60,16 +60,21 @@ export type ChromeLocation = {
 
 /**
  * Path contract (works with ServeDir → index.html SPA fallback):
- *   `/`                                  → board
- *   `/help`                              → help
- *   `/settings`                          → settings / OpenShell / Connectivity
- *   `/settings/openshell`                → settings / OpenShell / Connectivity
- *   `/settings/openshell/:tab`           → settings / OpenShell / tab
- *   `/settings/mcp-servers`              → settings / MCP servers
- *   `/settings/openshell/mcp-servers`    → redirect: MCP servers (top-level)
- *   `/settings/:section`                 → settings / section
- *   `/settings/github-app`               → redirect target: OpenShell / Providers
- *   `/card/:id`                          → board with DetailDrawer open on that card
+ *   `/`                                        → board
+ *   `/help`                                    → help
+ *   `/settings`                                → settings / OpenShell / Connectivity
+ *   `/settings/openshell`                      → settings / OpenShell / Connectivity
+ *   `/settings/openshell/:tab`                 → settings / OpenShell / tab
+ *   `/settings/openshell/mcp-servers`          → settings / MCP servers
+ *   `/settings/auth`                           → settings / Access
+ *   `/settings/openshell/providers`            → settings / OpenShell / Providers
+ *   `/settings/openshell/provider-types`       → settings / OpenShell / Provider types
+ *   `/settings/openshell/policies`             → settings / OpenShell / Policies
+ *   `/settings/openshell/profiles`             → settings / OpenShell / Sandbox specs
+ *   `/settings/github-app`                     → settings / GitHub App
+ *   `/settings/agent-runtime`                  → settings / Agent runtime
+ *   `/settings/workspace`                      → settings / Forge
+ *   `/card/:id`                                → board with DetailDrawer open on that card
  */
 export function parseChromeLocation(pathname: string): ChromeLocation {
   const path = normalizePath(pathname);
@@ -102,12 +107,7 @@ export function formatChromePath(loc: ChromeLocation): string {
   if (loc.view === "help") return "/help";
   if (loc.view === "settings") {
     const section = loc.settingsSection || DEFAULT_SETTINGS_SECTION;
-    // Top-level settings sections map directly: /settings/agent-runtime
-    // OpenShell sub-sections: /settings/openshell/providers
-    // Auth/Workspace/GitHubApp are separate sections
-    if (section === "openshell" || section.startsWith("openshell/")) {
-      return `/settings/${section}`;
-    }
+    // OpenShell tab section maps directly to its URL path
     return `/settings/${section}`;
   }
   if (loc.view === "board" && loc.cardId != null && loc.cardId > 0) {

@@ -746,7 +746,7 @@ export function OpenShellMcpServersPanel() {
             url,
             server_id: draft.id.trim() || undefined,
             name: draft.name.trim() || undefined,
-            return_path: "/settings/mcp-servers",
+            return_path: "/settings/openshell/mcp-servers",
           })
           .then((out) => {
             setDraft({ ...draft, id: out.server_id });

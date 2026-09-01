@@ -123,6 +123,12 @@ export function Settings({
     if (sectionProp === undefined) setInternalSection(next);
   };
 
+  /** Map an OpenShell tab to its corresponding settings section path. */
+  const tabToSection = (tab: OpenShellTab): SettingsSection => {
+    if (tab === "connectivity") return "openshell";
+    return `openshell/${tab}` as SettingsSection;
+  };
+
   return (
     <div className="settings" data-testid="settings">
       <header className="settings-hero">
@@ -152,7 +158,14 @@ export function Settings({
 
         <div className="settings-panel" data-testid={`settings-panel-${section}`}>
           {section === "openshell" ? (
-            <OpenShellPanel activeTab={openShellTab} onTabChange={onOpenShellTabChange} />
+            <OpenShellPanel
+              activeTab={openShellTab}
+              onTabChange={(tab) => {
+                const nextSection = tabToSection(tab);
+                setSection(nextSection);
+                onOpenShellTabChange?.(tab);
+              }}
+            />
           ) : section === "openshell/providers" ? (
             <OpenShellProvidersPanel gatewayHealthy={false} />
           ) : section === "openshell/provider-types" ? (
