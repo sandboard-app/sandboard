@@ -267,8 +267,21 @@ RUN npm install -g --ignore-scripts @earendil-works/pi-coding-agent \
  && /usr/local/bin/pi --version \
  && rm -rf /root/.npm /tmp/* /var/cache/dnf
 
+# Install the custom OpenAI providers extension for env-var seeded config.
+# Installed at ~/.pi/agent/npm/node_modules/ (pi's own extension path).
+RUN mkdir -p /sandbox/.pi/agent/npm \
+ && npm install --prefix /sandbox/.pi/agent/npm pi-custom-openai-providers \
+ && chmod -R a+rX /sandbox/.pi
+
+# Pi loads packages listed in settings.json from this package directory.
+# The custom provider extension creates models.json from CUSTOM_OPENAI_* at runtime.
+RUN mkdir -p /sandbox/.pi/agent/sessions /sandbox/.pi/agent/extensions /sandbox/.pi/agent/npm
+
+COPY sandbox/pi/settings.json /sandbox/.pi/agent/settings.json
 COPY sandbox/pi/pi /usr/local/bin/pi
-RUN chmod 0755 /usr/local/bin/pi
+RUN chmod -R 0755 /sandbox/.pi \
+ && chown -R 997:997 /sandbox/.pi \
+ && chmod 0755 /usr/local/bin/pi
 
 USER sandbox
 WORKDIR /sandbox
