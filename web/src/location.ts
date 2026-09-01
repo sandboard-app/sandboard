@@ -107,7 +107,16 @@ export function formatChromePath(loc: ChromeLocation): string {
   if (loc.view === "help") return "/help";
   if (loc.view === "settings") {
     const section = loc.settingsSection || DEFAULT_SETTINGS_SECTION;
-    // OpenShell tab section maps directly to its URL path
+    // Nested section like openshell/providers maps to /settings/openshell/providers
+    if (section !== "openshell" && section.startsWith("openshell/")) {
+      return `/settings/${section}`;
+    }
+    // OpenShell section: use tab for URL if non-default
+    if (section === "openshell") {
+      const tab = loc.openShellTab || DEFAULT_OPENSHELL_TAB;
+      if (tab === DEFAULT_OPENSHELL_TAB) return "/settings";
+      return `/settings/openshell/${tab}`;
+    }
     return `/settings/${section}`;
   }
   if (loc.view === "board" && loc.cardId != null && loc.cardId > 0) {
