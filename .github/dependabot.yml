@@ -1,0 +1,19 @@
+version: 2
+updates:
+  - package-ecosystem: "cargo"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+
+  - package-ecosystem: "npm"
+    directory: "/web"
+    schedule:
+      interval: "weekly"
+
+  - package-ecosystem: "docker"
+    directories:
+      - "/"
+      - "/sandbox"
+      - "/sandbox/microshift"
+    schedule:
+      interval: "weekly"
