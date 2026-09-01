@@ -8,7 +8,7 @@
     "test:dist": "node test-dist-cockpit-attach.mjs",
     "preview": "vite preview",
     "shots": "node screenshots.mjs",
-    "test": "./node_modules/.bin/tsc --outDir dist-test --target es2022 --module esnext --moduleResolution node --jsx react-jsx --esModuleInterop --skipLibCheck src/vite-env.d.ts src/wsUrl.ts src/cockpitAttachClient.ts src/useBoard.ts src/location.ts src/components/Card.tsx src/components/Board.tsx src/components/CreateProjectForm.tsx src/components/CreateTaskForm.tsx src/components/Cockpit.tsx src/components/DependencyGraph.tsx src/components/Detail.tsx src/components/Help.tsx src/components/OperatorGuide.tsx src/components/OpenShellReadiness.tsx src/components/PrimarySidebar.tsx src/components/AccountMenu.tsx src/components/YamlEditor.tsx src/components/OpenShellProfiles.tsx src/components/OpenShellPolicies.tsx src/components/OpenShellProviders.tsx src/components/OpenShellProviderTypes.tsx src/components/OpenShellMcpServers.tsx src/components/OpenShellSettings.tsx src/components/Settings.tsx src/api.ts src/types.ts src/humanize.ts src/theme.ts && node test-card.mjs && node test-graph.mjs && rm -rf dist-test"
+    "test": "tsc -p tsconfig.test.json && node test-card.mjs && node test-graph.mjs && rm -rf dist-test"
   },
   "dependencies": {
     "@codemirror/lang-yaml": "^6.1.3",
