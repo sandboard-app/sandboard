@@ -1,0 +1,8 @@
+#!/bin/sh
+set -eu
+
+export PI_CODING_AGENT_DIR="${PI_CODING_AGENT_DIR:-/sandbox/.pi/agent}"
+export HOME="${HOME:-/sandbox}"
+export NODE_OPTIONS="--no-warnings"
+
+exec /usr/bin/node /usr/local/lib/node_modules/@earendil-works/pi-coding-agent/dist/bundle/cli.js "$@"

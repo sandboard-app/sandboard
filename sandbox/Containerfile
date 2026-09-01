@@ -256,6 +256,34 @@ COPY sandbox/hermes/hermes /usr/local/bin/hermes
 RUN chmod 0644 /usr/share/hermes/config.yaml \
  && chmod 0755 /usr/local/bin/hermes
 
+# ---- pi ---------------------------------------------------------------
+# Pi is a Node.js coding agent. Install the global binary and provide a
+# wrapper that keeps state in /sandbox.
+FROM shared AS pi
+
+# Install pi globally. `--ignore-scripts` is safe — pi has no install scripts
+# for normal npm installs (see upstream README).
+RUN npm install -g --ignore-scripts @earendil-works/pi-coding-agent \
+ && /usr/local/bin/pi --version \
+ && rm -rf /root/.npm /tmp/* /var/cache/dnf
+
+# Install the custom OpenAI providers extension for env-var seeded config.
+# Installed at ~/.pi/agent/npm/node_modules/ (pi's own extension path).
+RUN mkdir -p /sandbox/.pi/agent/npm \
+ && npm install --prefix /sandbox/.pi/agent/npm pi-custom-openai-providers \
+ && chmod -R a+rX /sandbox/.pi
+
+# Pi loads packages listed in settings.json from this package directory.
+# The custom provider extension creates models.json from CUSTOM_OPENAI_* at runtime.
+RUN mkdir -p /sandbox/.pi/agent/sessions /sandbox/.pi/agent/extensions /sandbox/.pi/agent/npm
+
+COPY sandbox/pi/settings.json /sandbox/.pi/agent/settings.json
+COPY sandbox/pi/pi /usr/local/bin/pi
+RUN chmod -R 0755 /sandbox/.pi \
+ && chown -R sandbox:root /sandbox/.pi \
+ && chmod -R g=u /sandbox/.pi \
+ && chmod 0755 /usr/local/bin/pi
+
 USER sandbox
 WORKDIR /sandbox
 
@@ -275,6 +303,7 @@ WORKDIR /sandbox
 # cache to fall back on, so denying this egress means every card's first
 # `cargo build`/`npm ci` simply fails.
 # src/seed_policies.rs seeds one minimal cockpit policy per engine
-# (cockpit-cursor, cockpit-agy, cockpit-claude, cockpit-opencode, cockpit-hermes) matching
+# (cockpit-cursor, cockpit-agy, cockpit-claude, cockpit-opencode, cockpit-hermes,
+# cockpit-pi) matching
 # each split image's contents; edit the live Policy under Settings →
 # OpenShell → Policies if the catalog already exists.

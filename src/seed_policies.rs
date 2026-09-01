@@ -35,12 +35,14 @@ pub const COCKPIT_AGY_POLICY_ID: &str = "cockpit-agy";
 pub const COCKPIT_CLAUDE_POLICY_ID: &str = "cockpit-claude";
 pub const COCKPIT_OPENCODE_POLICY_ID: &str = "cockpit-opencode";
 pub const COCKPIT_HERMES_POLICY_ID: &str = "cockpit-hermes";
+pub const COCKPIT_PI_POLICY_ID: &str = "cockpit-pi";
 
 pub const COCKPIT_CURSOR_POLICY_NAME: &str = "Cockpit (cursor)";
 pub const COCKPIT_AGY_POLICY_NAME: &str = "Cockpit (agy)";
 pub const COCKPIT_CLAUDE_POLICY_NAME: &str = "Cockpit (claude)";
 pub const COCKPIT_OPENCODE_POLICY_NAME: &str = "Cockpit (opencode)";
 pub const COCKPIT_HERMES_POLICY_NAME: &str = "Cockpit (hermes)";
+pub const COCKPIT_PI_POLICY_NAME: &str = "Cockpit (pi)";
 
 /// Minimal Cockpit policy for `sandbox-cursor`: card-work toolchain + GitHub
 /// egress (git/gh) + Cursor's own API. Host sandboard MCP is stdio over a local
@@ -423,4 +425,79 @@ network_policies:
       - { path: /usr/bin/python3.12 }
       - { path: /usr/bin/bash }
       - { path: /bin/bash }
+"#;
+
+/// Cockpit policy for the sandbox-pi image. pi is a Node.js coding agent
+/// that needs GitHub egress (git/gh) + npm registry + GitHub Copilot/Agent APIs.
+/// Host sandboard MCP is stdio over a local Unix socket (socat).
+pub const COCKPIT_PI_POLICY: &str = r#"# Seeded Cockpit policy for the sandbox-pi image. Adjust under
+# Settings → OpenShell → Policies; this is a starting point, not a floor.
+version: 1
+
+filesystem_policy:
+  include_workdir: true
+  read_only: [/usr, /lib, /proc, /app, /etc, /var/log, /opt/rust, /opt/cargo-target]
+  read_write: [/sandbox, /tmp, /dev, /opt/cargo, /opt/npm-cache]
+
+landlock:
+  compatibility: best_effort
+
+network_policies:
+  github:
+    name: github
+    endpoints:
+      - { host: api.github.com, port: 443, protocol: rest, enforcement: enforce, access: full }
+      - { host: github.com, port: 443, protocol: rest, enforcement: enforce, access: full }
+    binaries:
+      - { path: /usr/bin/git }
+      - { path: /usr/local/bin/git }
+      - { path: /usr/bin/gh }
+      - { path: /usr/local/bin/gh }
+      - { path: /usr/bin/git-remote-https }
+      - { path: /usr/lib/git-core/git-remote-https }
+      - { path: /usr/bin/curl }
+      - { path: /usr/local/bin/curl }
+      - { path: /bin/sh }
+      - { path: /usr/bin/sh }
+      - { path: /bin/bash }
+      - { path: /usr/bin/bash }
+      - { path: /usr/bin/socat }
+      - { path: /usr/bin/node }
+      - { path: /usr/local/bin/node }
+
+  cargo_npm:
+    name: cargo-npm
+    endpoints:
+      - { host: index.crates.io, port: 443, protocol: rest, enforcement: enforce, access: full }
+      - { host: static.crates.io, port: 443, protocol: rest, enforcement: enforce, access: full }
+      - { host: registry.npmjs.org, port: 443, protocol: rest, enforcement: enforce, access: full }
+      - { host: github.com, port: 443, protocol: rest, enforcement: enforce, access: full }
+      - { host: registry.npm.org, port: 443, protocol: rest, enforcement: enforce, access: full }
+    binaries:
+      - { path: /opt/cargo/bin/cargo }
+      - { path: /opt/rust/toolchains/**/bin/cargo }
+      - { path: /usr/local/bin/cargo }
+      - { path: /usr/bin/npm }
+      - { path: /usr/local/bin/npm }
+      - { path: /usr/bin/node }
+      - { path: /usr/local/bin/node }
+
+  pi:
+    name: pi
+    endpoints:
+      - { host: api.anthropic.com, port: 443, protocol: rest, enforcement: enforce, access: full }
+      - { host: api.openai.com, port: 443, protocol: rest, enforcement: enforce, access: full }
+      - { host: openrouter.ai, port: 443, protocol: rest, enforcement: enforce, access: full }
+      - { host: api.github.com, port: 443, protocol: rest, enforcement: enforce, access: full }
+      - { host: github.com, port: 443, protocol: rest, enforcement: enforce, access: full }
+      - { host: '*.models.ai.goog', port: 443, protocol: rest, enforcement: enforce, access: full }
+      - { host: 'us-central1-aiplatform.googleapis.com', port: 443, protocol: rest, enforcement: enforce, access: full }
+    binaries:
+      - { path: /usr/bin/node }
+      - { path: /usr/local/bin/node }
+      - { path: /usr/bin/npx }
+      - { path: /usr/local/bin/npx }
+      - { path: /usr/bin/bash }
+      - { path: /bin/bash }
+      - { path: /usr/bin/socat }
 "#;
