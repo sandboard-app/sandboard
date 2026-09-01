@@ -3,7 +3,6 @@ set -eu
 
 export PI_AGENT_DIR="${PI_AGENT_DIR:-/sandbox/.pi/agent}"
 export HOME="${HOME:-/sandbox}"
-unset CUSTOM_BASE_URL OPENAI_BASE_URL OPENROUTER_BASE_URL ANTHROPIC_BASE_URL
 export NODE_OPTIONS="--no-warnings"
 
 exec /usr/bin/node /usr/local/lib/node_modules/@earendil-works/pi-coding-agent/dist/bundle/cli.js "$@"
