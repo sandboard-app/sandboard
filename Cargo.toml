@@ -51,7 +51,7 @@ openshell-policy = { git = "https://github.com/NVIDIA/OpenShell", rev = "69a05eb
 openshell-providers = { git = "https://github.com/NVIDIA/OpenShell", rev = "69a05ebb3b154e304a66fe80eed8504e889abc6d", version = "0.0.0" }
 openshell-sdk = { git = "https://github.com/NVIDIA/OpenShell", rev = "69a05ebb3b154e304a66fe80eed8504e889abc6d", version = "0.0.0" }
 oauth2 = "5"
-argon2 = "0.5.3"
+argon2 = "0.6.0"
 hmac = "0.13.0"
 sha2 = "0.11.0"
 hex = "0.4.3"
